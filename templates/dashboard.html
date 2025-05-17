@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Azure Drift Detector{% endblock %}
+
+{% block extra_head %}
+<style>
+    .card-stat {
+        transition: transform 0.2s;
+    }
+    .card-stat:hover {
+        transform: translateY(-5px);
+    }
+    .severity-critical {
+        background-color: rgba(220, 53, 69, 0.1);
+        border-left: 4px solid var(--bs-danger);
+    }
+    .severity-high {
+        background-color: rgba(255, 193, 7, 0.1);
+        border-left: 4px solid var(--bs-warning);
+    }
+    .severity-medium {
+        background-color: rgba(255, 193, 7, 0.05);
+        border-left: 4px solid var(--bs-warning);
+    }
+    .severity-low {
+        background-color: rgba(13, 202, 240, 0.05);
+        border-left: 4px solid var(--bs-info);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
+    <div>
+        <span class="badge bg-secondary" id="last-update">Last update: Loading...</span>
+        <button class="btn btn-sm btn-outline-primary ms-2" id="refresh-btn" onclick="refreshDashboard()">
+            <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Stats Cards -->
+    <div class="col-md-3">
+        <div class="card card-stat mb-4 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0 bg-primary rounded-3 p-3 me-3">
+                        <i class="bi bi-hdd-rack text-white fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted mb-1">Resources Monitored</h6>
+                        <h3 class="mb-0" id="total-resources">--</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-stat mb-4 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0 bg-danger rounded-3 p-3 me-3">
+                        <i class="bi bi-exclamation-triangle text-white fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted mb-1">Critical Changes</h6>
+                        <h3 class="mb-0" id="critical-changes">--</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-stat mb-4 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0 bg-warning rounded-3 p-3 me-3">
+                        <i class="bi bi-clock-history text-white fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted mb-1">Changes (24h)</h6>
+                        <h3 class="mb-0" id="recent-changes">--</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-stat mb-4 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0 bg-info rounded-3 p-3 me-3">
+                        <i class="bi bi-shield-check text-white fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted mb-1">Sign-in Events</h6>
+                        <h3 class="mb-0" id="signin-events">--</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Change Distribution Chart -->
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-pie-chart-fill me-2"></i>Change Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="changesChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Changes Timeline Chart -->
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-graph-up me-2"></i>Changes Timeline</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="timelineChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Configuration Changes -->
+    <div class="col-md-12">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i>Recent Configuration Changes</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Resource</th>
+                                <th>Type</th>
+                                <th>Change Type</th>
+                                <th>Severity</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-changes-table">
+                            <tr>
+                                <td colspan="6" class="text-center">Loading data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer text-end">
+                <a href="{{ url_for('reports') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-list-ul me-1"></i> View All Changes
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+    // Set up auto-refresh every 5 minutes
+    setInterval(loadDashboardData, 5 * 60 * 1000);
+});
+
+function refreshDashboard() {
+    const refreshBtn = document.getElementById('refresh-btn');
+    refreshBtn.disabled = true;
+    refreshBtn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Refreshing...';
+    
+    loadDashboardData().finally(() => {
+        refreshBtn.disabled = false;
+        refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i> Refresh';
+    });
+}
+
+function loadDashboardData() {
+    return fetch('/api/dashboard/stats')
+        .then(response => response.json())
+        .then(data => {
+            // Update stats
+            document.getElementById('total-resources').textContent = data.total_resources;
+            document.getElementById('critical-changes').textContent = data.critical_changes;
+            document.getElementById('recent-changes').textContent = data.recent_changes;
+            document.getElementById('signin-events').textContent = data.signin_events;
+            document.getElementById('last-update').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+            
+            // Update charts
+            updateChangesChart(data.change_distribution);
+            updateTimelineChart(data.timeline_data);
+            
+            // Update recent changes table
+            updateRecentChangesTable(data.recent_changes_list);
+        })
+        .catch(error => {
+            console.error('Error fetching dashboard data:', error);
+            document.getElementById('last-update').textContent = `Last update failed: ${new Date().toLocaleTimeString()}`;
+        });
+}
+
+function updateRecentChangesTable(changes) {
+    const tableBody = document.getElementById('recent-changes-table');
+    
+    if (!changes || changes.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No recent changes found.</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    changes.forEach(change => {
+        html += `
+        <tr class="severity-${change.severity}">
+            <td>${change.time}</td>
+            <td>${change.resource_name}</td>
+            <td>${change.resource_type}</td>
+            <td>${change.change_type}</td>
+            <td>${change.severity_badge}</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-outline-info" 
+                        onclick="viewChangeDetails(${change.id})"
+                        data-bs-toggle="modal" data-bs-target="#changeDetailsModal">
+                    <i class="bi bi-info-circle"></i>
+                </button>
+            </td>
+        </tr>`;
+    });
+    
+    tableBody.innerHTML = html;
+}
+
+function viewChangeDetails(changeId) {
+    fetch(`/api/changes/${changeId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('changeDetailsTitle').textContent = `Change Details - ${data.resource_name}`;
+            document.getElementById('changeDetailsBody').innerHTML = formatChangeDetails(data);
+        })
+        .catch(error => {
+            console.error('Error fetching change details:', error);
+        });
+}
+
+function formatChangeDetails(data) {
+    let html = `
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <p><strong>Resource:</strong> ${data.resource_name}</p>
+            <p><strong>Resource Type:</strong> ${data.resource_type}</p>
+            <p><strong>Changed At:</strong> ${data.time}</p>
+        </div>
+        <div class="col-md-6">
+            <p><strong>Source:</strong> ${data.source}</p>
+            <p><strong>Severity:</strong> ${data.severity_badge}</p>
+        </div>
+    </div>
+    <h5>Changes:</h5>
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Path</th>
+                    <th>Type</th>
+                    <th>Old Value</th>
+                    <th>New Value</th>
+                </tr>
+            </thead>
+            <tbody>`;
+    
+    data.changes.forEach(change => {
+        html += `
+        <tr>
+            <td><code>${change.path}</code></td>
+            <td>${change.type}</td>
+            <td><code>${change.old_value || '-'}</code></td>
+            <td><code>${change.new_value || '-'}</code></td>
+        </tr>`;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    </div>`;
+    
+    return html;
+}
+</script>
+
+<!-- Change Details Modal -->
+<div class="modal fade" id="changeDetailsModal" tabindex="-1" aria-labelledby="changeDetailsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="changeDetailsTitle">Change Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="changeDetailsBody">
+                <div class="d-flex justify-content-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

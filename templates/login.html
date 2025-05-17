@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Savanna Tech Azure Drift Detector{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow">
+            <div class="card-body text-center pt-4">
+                <img src="{{ url_for('static', filename='images/logo.jpeg') }}" alt="Savanna Logo" class="mb-4" style="width: 120px; height: auto;">
+                <h4 class="mb-4">Welcome to Savanna Tech Azure Drift Detector</h4>
+                {% if error %}
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
+                </div>
+                {% endif %}
+                
+                <form method="POST" action="{{ url_for('login') }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            <input type="text" class="form-control" id="username" name="username" required autocomplete="username">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-key"></i></span>
+                            <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password">
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                        </button>
+                    </div>
+                </form>
+                
+                {% if ms_auth_enabled %}
+                <div class="mt-4 text-center">
+                    <p class="mb-2">- OR -</p>
+                    <a href="{{ url_for('login_microsoft') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-microsoft me-2"></i>Login with Microsoft
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer text-center">
+                <small class="text-muted">
+                    Azure Drift Detector - Secure authentication for your Microsoft 365 and Azure environment.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

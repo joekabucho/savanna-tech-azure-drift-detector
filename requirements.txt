@@ -1,0 +1,17 @@
+Flask
+Flask-SQLAlchemy
+Flask-Login
+Flask-Dance
+Flask-Swagger-UI
+Werkzeug
+psycopg2-binary
+APScheduler
+deepdiff
+authlib
+requests
+python-dotenv
+oauthlib
+msal
+pytest
+gunicorn
+flask_migrate

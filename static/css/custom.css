@@ -1,0 +1,145 @@
+/**
+ * Custom styles for Azure Drift Detector
+ */
+
+/* Avatar styling */
+.avatar-circle {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto;
+    background-color: var(--bs-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar-initials {
+    color: #fff;
+    font-size: 32px;
+    line-height: 1;
+    font-weight: 600;
+}
+
+/* Severity indicators for change rows */
+.severity-critical {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-left: 4px solid var(--bs-danger);
+}
+
+.severity-high {
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 4px solid var(--bs-warning);
+}
+
+.severity-medium {
+    background-color: rgba(255, 193, 7, 0.05);
+    border-left: 4px solid var(--bs-warning);
+}
+
+.severity-low {
+    background-color: rgba(13, 202, 240, 0.05);
+    border-left: 4px solid var(--bs-info);
+}
+
+/* Card hover effects */
+.card-stat {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card-stat:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Custom scrollbar for tables */
+.table-responsive {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bs-gray-600) var(--bs-gray-800);
+}
+
+.table-responsive::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: var(--bs-gray-800);
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background-color: var(--bs-gray-600);
+    border-radius: 4px;
+}
+
+/* Better spacing for dashboard elements */
+.dashboard-container {
+    margin-bottom: 2rem;
+}
+
+/* Custom styling for code in tables */
+td code {
+    max-width: 300px;
+    overflow-x: auto;
+    display: inline-block;
+    white-space: nowrap;
+    padding: 0.2rem 0.4rem;
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 3px;
+    font-size: 0.875em;
+}
+
+/* Custom badge styles */
+.badge.bg-critical {
+    background-color: #b71c1c !important;
+}
+
+/* Improve tooltip visibility */
+.chart-tooltip {
+    background-color: rgba(33, 37, 41, 0.9) !important;
+    border-radius: 4px;
+    padding: 8px 12px !important;
+    border: 1px solid var(--bs-gray-700);
+}
+
+/* Custom styles for login page */
+.login-container {
+    max-width: 400px;
+    margin: 2rem auto;
+}
+
+.login-logo {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+/* Spinner overlay for loading states */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+/* Make buttons consistent in size */
+.btn-icon {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Footer styling */
+.footer {
+    margin-top: 3rem;
+    padding: 1.5rem 0;
+    border-top: 1px solid var(--bs-gray-800);
+}

@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Azure Drift Detector{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-gear me-2"></i>Settings</h1>
+    <div>
+        <button class="btn btn-outline-primary" id="save-btn" onclick="saveSettings()">
+            <i class="bi bi-save me-1"></i> Save Changes
+        </button>
+    </div>
+</div>
+
+<!-- Settings Tabs -->
+<ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-selected="true">
+            <i class="bi bi-sliders me-1"></i> General
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="azure-tab" data-bs-toggle="tab" data-bs-target="#azure" type="button" role="tab" aria-selected="false">
+            <i class="bi bi-microsoft me-1"></i> Azure Connection
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab" aria-selected="false">
+            <i class="bi bi-bell me-1"></i> Notifications
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="polling-tab" data-bs-toggle="tab" data-bs-target="#polling" type="button" role="tab" aria-selected="false">
+            <i class="bi bi-arrow-repeat me-1"></i> Polling
+        </button>
+    </li>
+</ul>
+
+<!-- Tab Content -->
+<div class="tab-content" id="settingsTabContent">
+    <!-- General Settings -->
+    <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">General Settings</h5>
+                <div class="mb-3">
+                    <label for="appName" class="form-label">Application Name</label>
+                    <input type="text" class="form-control" id="appName" value="Azure Drift Detector">
+                    <div class="form-text">This name will appear in the UI and notification messages.</div>
+                </div>
+                <div class="mb-3">
+                    <label for="timezone" class="form-label">Default Timezone</label>
+                    <select class="form-select" id="timezone">
+                        <option value="UTC">UTC</option>
+                        <option value="America/New_York">Eastern Time (ET)</option>
+                        <option value="America/Chicago">Central Time (CT)</option>
+                        <option value="America/Denver">Mountain Time (MT)</option>
+                        <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                        <option value="Europe/London">London (GMT)</option>
+                        <option value="Europe/Paris">Central European Time (CET)</option>
+                        <option value="Asia/Tokyo">Japan Standard Time (JST)</option>
+                    </select>
+                    <div class="form-text">All times will be displayed in this timezone.</div>
+                </div>
+                <div class="mb-3">
+                    <label for="retention" class="form-label">Data Retention Period (days)</label>
+                    <input type="number" class="form-control" id="retention" min="1" max="365" value="90">
+                    <div class="form-text">How long to keep historical configuration changes.</div>
+                </div>
+                <div class="mb-3 form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="debugMode">
+                    <label class="form-check-label" for="debugMode">Debug Mode</label>
+                    <div class="form-text">Enable additional logging for troubleshooting.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Azure Connection Settings -->
+    <div class="tab-pane fade" id="azure" role="tabpanel" aria-labelledby="azure-tab">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Azure Connection Settings</h5>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    These settings configure the connection to Microsoft Azure and Microsoft 365. 
+                    Application credentials should be configured as environment variables for security.
+                </div>
+                
+                <div class="mb-3">
+                    <label for="tenantId" class="form-label">Azure Tenant ID</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="tenantId" placeholder="Tenant ID from environment">
+                        <span class="input-group-text bg-secondary text-white">
+                            <i class="bi bi-shield-lock"></i>
+                        </span>
+                    </div>
+                    <div class="form-text">Set via AZURE_TENANT_ID environment variable.</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="clientId" class="form-label">Azure Client ID</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="clientId" placeholder="Client ID from environment">
+                        <span class="input-group-text bg-secondary text-white">
+                            <i class="bi bi-shield-lock"></i>
+                        </span>
+                    </div>
+                    <div class="form-text">Set via AZURE_CLIENT_ID environment variable.</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="clientSecret" class="form-label">Azure Client Secret</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="clientSecret" placeholder="••••••••••••••••">
+                        <span class="input-group-text bg-secondary text-white">
+                            <i class="bi bi-shield-lock"></i>
+                        </span>
+                    </div>
+                    <div class="form-text">Set via AZURE_CLIENT_SECRET environment variable.</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Connection Status</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="connectionStatus" readonly value="Unknown">
+                        <button class="btn btn-outline-primary" type="button" id="testConnection">
+                            <i class="bi bi-arrow-repeat me-1"></i> Test Connection
+                        </button>
+                    </div>
+                </div>
+                
+                <h6 class="mt-4">Required API Permissions</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>API</th>
+                                <th>Permission</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Microsoft Graph</td>
+                                <td>Directory.Read.All</td>
+                                <td>Application</td>
+                            </tr>
+                            <tr>
+                                <td>Microsoft Graph</td>
+                                <td>AuditLog.Read.All</td>
+                                <td>Application</td>
+                            </tr>
+                            <tr>
+                                <td>Azure Service Management</td>
+                                <td>user_impersonation</td>
+                                <td>Application</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Settings -->
+    <div class="tab-pane fade" id="notifications" role="tabpanel" aria-labelledby="notifications-tab">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Notification Settings</h5>
+                
+                <div class="mb-3 form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="emailNotifications">
+                    <label class="form-check-label" for="emailNotifications">Email Notifications</label>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="emailRecipients" class="form-label">Email Recipients</label>
+                    <input type="text" class="form-control" id="emailRecipients" placeholder="email1@example.com, email2@example.com">
+                    <div class="form-text">Comma-separated list of email addresses to notify.</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="notificationLevel" class="form-label">Notification Level</label>
+                    <select class="form-select" id="notificationLevel">
+                        <option value="critical">Critical Only</option>
+                        <option value="high">High and Critical</option>
+                        <option value="medium">Medium, High, and Critical</option>
+                        <option value="all">All Changes</option>
+                    </select>
+                    <div class="form-text">Which severity levels should trigger notifications.</div>
+                </div>
+                
+                <div class="mb-3 form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="webhookNotifications">
+                    <label class="form-check-label" for="webhookNotifications">Webhook Notifications</label>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="webhookUrl" class="form-label">Webhook URL</label>
+                    <input type="url" class="form-control" id="webhookUrl" placeholder="https://example.com/webhook">
+                    <div class="form-text">URL to send webhook notifications to.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Polling Settings -->
+    <div class="tab-pane fade" id="polling" role="tabpanel" aria-labelledby="polling-tab">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Polling Settings</h5>
+                
+                <div class="mb-3">
+                    <label for="pollingInterval" class="form-label">Polling Interval (minutes)</label>
+                    <input type="number" class="form-control" id="pollingInterval" min="5" max="1440" value="30">
+                    <div class="form-text">How often to check for configuration changes. Minimum 5 minutes.</div>
+                </div>
+                
+                <div class="mb-3 form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="pollingEnabled" checked>
+                    <label class="form-check-label" for="pollingEnabled">Enable Polling</label>
+                    <div class="form-text">Turn polling on or off.</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="lastPollStatus" class="form-label">Last Poll Status</label>
+                    <input type="text" class="form-control" id="lastPollStatus" readonly>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="nextPoll" class="form-label">Next Scheduled Poll</label>
+                    <input type="text" class="form-control" id="nextPoll" readonly>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Manual Poll</label>
+                    <div class="d-grid">
+                        <button class="btn btn-primary" type="button" id="manualPoll">
+                            <i class="bi bi-arrow-repeat me-1"></i> Poll Now
+                        </button>
+                    </div>
+                    <div class="form-text">Immediately poll for configuration changes.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadSettings();
+    
+    // Test connection button
+    document.getElementById('testConnection').addEventListener('click', function() {
+        testAzureConnection();
+    });
+    
+    // Manual poll button
+    document.getElementById('manualPoll').addEventListener('click', function() {
+        triggerManualPoll();
+    });
+});
+
+function loadSettings() {
+    fetch('/api/settings')
+        .then(response => response.json())
+        .then(data => {
+            // General settings
+            document.getElementById('appName').value = data.general.app_name;
+            document.getElementById('timezone').value = data.general.timezone;
+            document.getElementById('retention').value = data.general.retention_days;
+            document.getElementById('debugMode').checked = data.general.debug_mode;
+            
+            // Azure settings
+            document.getElementById('tenantId').placeholder = data.azure.tenant_id_placeholder;
+            document.getElementById('clientId').placeholder = data.azure.client_id_placeholder;
+            document.getElementById('connectionStatus').value = data.azure.connection_status;
+            
+            // Notification settings
+            document.getElementById('emailNotifications').checked = data.notifications.email_enabled;
+            document.getElementById('emailRecipients').value = data.notifications.email_recipients;
+            document.getElementById('notificationLevel').value = data.notifications.level;
+            document.getElementById('webhookNotifications').checked = data.notifications.webhook_enabled;
+            document.getElementById('webhookUrl').value = data.notifications.webhook_url;
+            
+            // Polling settings
+            document.getElementById('pollingInterval').value = data.polling.interval_minutes;
+            document.getElementById('pollingEnabled').checked = data.polling.enabled;
+            document.getElementById('lastPollStatus').value = data.polling.last_poll_status;
+            document.getElementById('nextPoll').value = data.polling.next_poll;
+        })
+        .catch(error => {
+            console.error('Error loading settings:', error);
+            alert('Failed to load settings. Please try again later.');
+        });
+}
+
+function saveSettings() {
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Saving...';
+    
+    const settings = {
+        general: {
+            app_name: document.getElementById('appName').value,
+            timezone: document.getElementById('timezone').value,
+            retention_days: parseInt(document.getElementById('retention').value),
+            debug_mode: document.getElementById('debugMode').checked
+        },
+        notifications: {
+            email_enabled: document.getElementById('emailNotifications').checked,
+            email_recipients: document.getElementById('emailRecipients').value,
+            level: document.getElementById('notificationLevel').value,
+            webhook_enabled: document.getElementById('webhookNotifications').checked,
+            webhook_url: document.getElementById('webhookUrl').value
+        },
+        polling: {
+            interval_minutes: parseInt(document.getElementById('pollingInterval').value),
+            enabled: document.getElementById('pollingEnabled').checked
+        }
+    };
+    
+    fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('Failed to save settings');
+    })
+    .then(data => {
+        alert('Settings saved successfully!');
+    })
+    .catch(error => {
+        console.error('Error saving settings:', error);
+        alert('Failed to save settings. Please try again later.');
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bi bi-save me-1"></i> Save Changes';
+    });
+}
+
+function testAzureConnection() {
+    const testBtn = document.getElementById('testConnection');
+    const statusInput = document.getElementById('connectionStatus');
+    
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Testing...';
+    statusInput.value = 'Testing...';
+    
+    fetch('/api/test-connection')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                statusInput.value = 'Connected';
+                statusInput.classList.add('is-valid');
+                statusInput.classList.remove('is-invalid');
+            } else {
+                statusInput.value = 'Connection Failed';
+                statusInput.classList.add('is-invalid');
+                statusInput.classList.remove('is-valid');
+                alert(`Connection failed: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error testing connection:', error);
+            statusInput.value = 'Error Testing Connection';
+            statusInput.classList.add('is-invalid');
+            statusInput.classList.remove('is-valid');
+            alert('Error testing connection. Please check your network and try again.');
+        })
+        .finally(() => {
+            testBtn.disabled = false;
+            testBtn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Test Connection';
+        });
+}
+
+function triggerManualPoll() {
+    const pollBtn = document.getElementById('manualPoll');
+    const lastPollStatus = document.getElementById('lastPollStatus');
+    
+    pollBtn.disabled = true;
+    pollBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Polling...';
+    lastPollStatus.value = 'Polling in progress...';
+    
+    fetch('/api/poll-now', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                lastPollStatus.value = `Success: ${data.timestamp}`;
+                alert('Manual polling completed successfully!');
+            } else {
+                lastPollStatus.value = `Failed: ${data.timestamp}`;
+                alert(`Polling failed: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error triggering manual poll:', error);
+            lastPollStatus.value = 'Error during polling';
+            alert('Error triggering manual poll. Please try again later.');
+        })
+        .finally(() => {
+            pollBtn.disabled = false;
+            pollBtn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Poll Now';
+        });
+}
+</script>
+{% endblock %}

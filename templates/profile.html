@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - Azure Drift Detector{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-person-circle me-2"></i>User Profile</h1>
+    <div>
+        <button class="btn btn-primary" id="saveProfileBtn">
+            <i class="bi bi-save me-1"></i> Save Changes
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <!-- User Info Card -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-person me-2"></i>Account Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <div class="avatar-circle mb-3">
+                        <span class="avatar-initials">{{ current_user.first_name[0] if current_user.first_name else current_user.username[0] | upper }}</span>
+                    </div>
+                    <h5>{{ current_user.username }}</h5>
+                    <p class="text-muted">
+                        {% for role in current_user.roles %}
+                            <span class="badge bg-secondary me-1">{{ role.name }}</span>
+                        {% endfor %}
+                    </p>
+                </div>
+                
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Email</span>
+                        <span>{{ current_user.email }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Last Login</span>
+                        <span>{{ current_user.last_login.strftime('%Y-%m-%d %H:%M') if current_user.last_login else 'Never' }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Account Created</span>
+                        <span>{{ current_user.created_at.strftime('%Y-%m-%d') }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>MS Account Linked</span>
+                        <span>
+                            {% if current_user.microsoft_id %}
+                                <i class="bi bi-check-circle-fill text-success"></i> Yes
+                            {% else %}
+                                <i class="bi bi-x-circle-fill text-danger"></i> No
+                            {% endif %}
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <!-- Profile Settings Card -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-pencil-square me-2"></i>Edit Profile</h5>
+            </div>
+            <div class="card-body">
+                <form id="profileForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="firstName" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="firstName" value="{{ current_user.first_name or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="lastName" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="lastName" value="{{ current_user.last_name or '' }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" value="{{ current_user.email }}">
+                    </div>
+                    <hr>
+                    <h6>Change Password</h6>
+                    <div class="mb-3">
+                        <label for="currentPassword" class="form-label">Current Password</label>
+                        <input type="password" class="form-control" id="currentPassword">
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="newPassword" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="newPassword">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirmPassword">
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- OAuth Connections Card -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-link-45deg me-2"></i>Connected Accounts</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0"><i class="bi bi-microsoft me-2"></i>Microsoft Account</h6>
+                        {% if current_user.microsoft_id %}
+                            <small class="text-success">Connected</small>
+                        {% else %}
+                            <small class="text-muted">Not connected</small>
+                        {% endif %}
+                    </div>
+                    <div>
+                        {% if current_user.microsoft_id %}
+                            <button class="btn btn-outline-danger btn-sm" id="disconnectMsBtn">
+                                <i class="bi bi-x-circle me-1"></i> Disconnect
+                            </button>
+                        {% else %}
+                            <a href="{{ url_for('login_microsoft') }}" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-box-arrow-in-right me-1"></i> Connect
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if current_user.microsoft_id %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    Your Microsoft account is linked. You can use it to sign in to Azure Drift Detector.
+                </div>
+                {% else %}
+                <div class="alert alert-secondary">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Link your Microsoft account to enable single sign-on and simplify authentication.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Save profile button
+    document.getElementById('saveProfileBtn').addEventListener('click', function() {
+        saveProfile();
+    });
+    
+    // Disconnect Microsoft account button (if exists)
+    const disconnectBtn = document.getElementById('disconnectMsBtn');
+    if (disconnectBtn) {
+        disconnectBtn.addEventListener('click', function() {
+            disconnectMicrosoftAccount();
+        });
+    }
+});
+
+function saveProfile() {
+    const firstName = document.getElementById('firstName').value;
+    const lastName = document.getElementById('lastName').value;
+    const email = document.getElementById('email').value;
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    // Validate email
+    if (!email) {
+        alert('Email is required');
+        return;
+    }
+    
+    // If changing password, validate
+    let passwordChange = false;
+    if (newPassword || confirmPassword || currentPassword) {
+        if (!currentPassword) {
+            alert('Current password is required to set a new password');
+            return;
+        }
+        
+        if (newPassword !== confirmPassword) {
+            alert('New passwords do not match');
+            return;
+        }
+        
+        passwordChange = true;
+    }
+    
+    const profileData = {
+        first_name: firstName,
+        last_name: lastName,
+        email: email
+    };
+    
+    if (passwordChange) {
+        profileData.current_password = currentPassword;
+        profileData.new_password = newPassword;
+    }
+    
+    const saveBtn = document.getElementById('saveProfileBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Saving...';
+    
+    fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || 'Error updating profile');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Clear password fields
+        document.getElementById('currentPassword').value = '';
+        document.getElementById('newPassword').value = '';
+        document.getElementById('confirmPassword').value = '';
+        
+        alert('Profile updated successfully');
+    })
+    .catch(error => {
+        console.error('Error updating profile:', error);
+        alert(error.message || 'Error updating profile');
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bi bi-save me-1"></i> Save Changes';
+    });
+}
+
+function disconnectMicrosoftAccount() {
+    if (!confirm('Are you sure you want to disconnect your Microsoft account?')) {
+        return;
+    }
+    
+    fetch('/api/disconnect-microsoft', {
+        method: 'POST'
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || 'Error disconnecting account');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        alert('Microsoft account disconnected successfully');
+        location.reload();
+    })
+    .catch(error => {
+        console.error('Error disconnecting account:', error);
+        alert(error.message || 'Error disconnecting account');
+    });
+}
+</script>
+{% endblock %}

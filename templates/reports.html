@@ -1,0 +1,503 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Azure Drift Detector{% endblock %}
+
+{% block extra_head %}
+<style>
+    .severity-critical {
+        background-color: rgba(220, 53, 69, 0.1);
+        border-left: 4px solid var(--bs-danger);
+    }
+    .severity-high {
+        background-color: rgba(255, 193, 7, 0.1);
+        border-left: 4px solid var(--bs-warning);
+    }
+    .severity-medium {
+        background-color: rgba(255, 193, 7, 0.05);
+        border-left: 4px solid var(--bs-warning);
+    }
+    .severity-low {
+        background-color: rgba(13, 202, 240, 0.05);
+        border-left: 4px solid var(--bs-info);
+    }
+    .filter-card {
+        transition: all 0.3s ease;
+    }
+    .filter-card:hover {
+        border-color: var(--bs-primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-graph-up me-2"></i>Reports</h1>
+    <div class="btn-group">
+        <button class="btn btn-outline-primary" id="refresh-btn" onclick="refreshReports()">
+            <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+        </button>
+        <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#filtersContainer">
+            <i class="bi bi-funnel me-1"></i> Filters
+        </button>
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-download me-1"></i> Export
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="#" onclick="exportReport('csv')"><i class="bi bi-filetype-csv me-2"></i>CSV</a></li>
+                <li><a class="dropdown-item" href="#" onclick="exportReport('json')"><i class="bi bi-filetype-json me-2"></i>JSON</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="collapse mb-4" id="filtersContainer">
+    <div class="card filter-card">
+        <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-funnel me-2"></i>Filters</h5>
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label for="sourceFilter" class="form-label">Source</label>
+                    <select class="form-select" id="sourceFilter">
+                        <option value="">All Sources</option>
+                        <option value="azure">Azure</option>
+                        <option value="microsoft365">Microsoft 365</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="resourceTypeFilter" class="form-label">Resource Type</label>
+                    <select class="form-select" id="resourceTypeFilter">
+                        <option value="">All Types</option>
+                        <!-- Will be populated dynamically -->
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="severityFilter" class="form-label">Severity</label>
+                    <select class="form-select" id="severityFilter">
+                        <option value="">All Severities</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="dateRangeFilter" class="form-label">Date Range</label>
+                    <select class="form-select" id="dateRangeFilter">
+                        <option value="1">Last 24 hours</option>
+                        <option value="7">Last 7 days</option>
+                        <option value="30">Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="d-flex justify-content-end">
+                        <button class="btn btn-secondary me-2" onclick="resetFilters()">Reset</button>
+                        <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary bg-opacity-10 text-primary h-100">
+            <div class="card-body">
+                <h5 class="card-title">Total Changes</h5>
+                <h2 class="card-text" id="totalChangesCount">--</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger bg-opacity-10 text-danger h-100">
+            <div class="card-body">
+                <h5 class="card-title">Critical Changes</h5>
+                <h2 class="card-text" id="criticalChangesCount">--</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning bg-opacity-10 text-warning h-100">
+            <div class="card-body">
+                <h5 class="card-title">High Severity</h5>
+                <h2 class="card-text" id="highSeverityCount">--</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-secondary bg-opacity-10 text-secondary h-100">
+            <div class="card-body">
+                <h5 class="card-title">Resources Affected</h5>
+                <h2 class="card-text" id="resourcesAffectedCount">--</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Changes Table -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0"><i class="bi bi-table me-2"></i>Configuration Changes</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="changesTable">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Resource</th>
+                        <th>Type</th>
+                        <th>Source</th>
+                        <th>Severity</th>
+                        <th>Changes</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="changesTableBody">
+                    <tr>
+                        <td colspan="7" class="text-center">Loading data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span id="showing-entries">Showing 0 of 0 entries</span>
+            </div>
+            <div>
+                <nav aria-label="Changes pagination">
+                    <ul class="pagination mb-0" id="changesPagination">
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Previous</a>
+                        </li>
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+let totalPages = 1;
+let pageSize = 10;
+let currentFilters = {
+    source: '',
+    resourceType: '',
+    severity: '',
+    dateRange: '7'  // Default to 7 days
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadResourceTypes();
+    loadReportData();
+});
+
+function refreshReports() {
+    const refreshBtn = document.getElementById('refresh-btn');
+    refreshBtn.disabled = true;
+    refreshBtn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Refreshing...';
+    
+    loadReportData().finally(() => {
+        refreshBtn.disabled = false;
+        refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i> Refresh';
+    });
+}
+
+function loadResourceTypes() {
+    fetch('/api/resource-types')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('resourceTypeFilter');
+            select.innerHTML = '<option value="">All Types</option>';
+            
+            data.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading resource types:', error);
+        });
+}
+
+function resetFilters() {
+    document.getElementById('sourceFilter').value = '';
+    document.getElementById('resourceTypeFilter').value = '';
+    document.getElementById('severityFilter').value = '';
+    document.getElementById('dateRangeFilter').value = '7';
+}
+
+function applyFilters() {
+    currentFilters = {
+        source: document.getElementById('sourceFilter').value,
+        resourceType: document.getElementById('resourceTypeFilter').value,
+        severity: document.getElementById('severityFilter').value,
+        dateRange: document.getElementById('dateRangeFilter').value
+    };
+    
+    currentPage = 1;
+    loadReportData();
+    
+    // Hide filters panel after applying
+    bootstrap.Collapse.getInstance(document.getElementById('filtersContainer')).hide();
+}
+
+function loadReportData() {
+    const params = new URLSearchParams({
+        page: currentPage,
+        pageSize,
+        source: currentFilters.source,
+        resourceType: currentFilters.resourceType,
+        severity: currentFilters.severity,
+        dateRange: currentFilters.dateRange
+    });
+    
+    return fetch(`/api/reports?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            updateSummaryCards(data.summary);
+            updateChangesTable(data.changes);
+            updatePagination(data.pagination);
+        })
+        .catch(error => {
+            console.error('Error loading report data:', error);
+            alert('Failed to load report data. Please try again later.');
+        });
+}
+
+function updateSummaryCards(summary) {
+    document.getElementById('totalChangesCount').textContent = summary.total || 0;
+    document.getElementById('criticalChangesCount').textContent = summary.critical || 0;
+    document.getElementById('highSeverityCount').textContent = summary.high || 0;
+    document.getElementById('resourcesAffectedCount').textContent = summary.resources_affected || 0;
+}
+
+function updateChangesTable(changes) {
+    const tableBody = document.getElementById('changesTableBody');
+    
+    if (!changes || changes.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center">
+                    <div class="p-4">
+                        <i class="bi bi-search fs-1 d-block mb-2"></i>
+                        <h5>No changes found</h5>
+                        <p class="text-muted">Try adjusting your filter criteria</p>
+                    </div>
+                </td>
+            </tr>`;
+        return;
+    }
+    
+    let html = '';
+    changes.forEach(change => {
+        html += `
+        <tr class="severity-${change.severity}">
+            <td>${change.time}</td>
+            <td>${change.resource_name}</td>
+            <td>${change.resource_type}</td>
+            <td>${change.source}</td>
+            <td>${change.severity_badge}</td>
+            <td>${change.change_count} changes</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-outline-info" 
+                        onclick="viewChangeDetails(${change.id})"
+                        data-bs-toggle="modal" data-bs-target="#changeDetailsModal">
+                    <i class="bi bi-info-circle"></i> Details
+                </button>
+            </td>
+        </tr>`;
+    });
+    
+    tableBody.innerHTML = html;
+}
+
+function updatePagination(pagination) {
+    const paginationEl = document.getElementById('changesPagination');
+    totalPages = pagination.total_pages;
+    currentPage = pagination.current_page;
+    
+    // Update showing entries text
+    document.getElementById('showing-entries').textContent = 
+        `Showing ${pagination.start_index} to ${pagination.end_index} of ${pagination.total_items} entries`;
+    
+    // Build pagination
+    let html = '';
+    
+    // Previous button
+    html += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;">Previous</a>
+        </li>`;
+    
+    // Page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage + 1 < maxVisiblePages) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    if (startPage > 1) {
+        html += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="changePage(1); return false;">1</a>
+            </li>`;
+        
+        if (startPage > 2) {
+            html += `
+                <li class="page-item disabled">
+                    <a class="page-link" href="#">...</a>
+                </li>`;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>
+            </li>`;
+    }
+    
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            html += `
+                <li class="page-item disabled">
+                    <a class="page-link" href="#">...</a>
+                </li>`;
+        }
+        
+        html += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="changePage(${totalPages}); return false;">${totalPages}</a>
+            </li>`;
+    }
+    
+    // Next button
+    html += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;">Next</a>
+        </li>`;
+    
+    paginationEl.innerHTML = html;
+}
+
+function changePage(page) {
+    if (page < 1 || page > totalPages) return;
+    
+    currentPage = page;
+    loadReportData();
+    
+    // Scroll to top of table
+    document.getElementById('changesTable').scrollIntoView({behavior: 'smooth'});
+}
+
+function viewChangeDetails(changeId) {
+    fetch(`/api/changes/${changeId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('changeDetailsTitle').textContent = `Change Details - ${data.resource_name}`;
+            document.getElementById('changeDetailsBody').innerHTML = formatChangeDetails(data);
+        })
+        .catch(error => {
+            console.error('Error fetching change details:', error);
+        });
+}
+
+function formatChangeDetails(data) {
+    let html = `
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <p><strong>Resource:</strong> ${data.resource_name}</p>
+            <p><strong>Resource Type:</strong> ${data.resource_type}</p>
+            <p><strong>Changed At:</strong> ${data.time}</p>
+        </div>
+        <div class="col-md-6">
+            <p><strong>Source:</strong> ${data.source}</p>
+            <p><strong>Severity:</strong> ${data.severity_badge}</p>
+        </div>
+    </div>
+    <h5>Changes:</h5>
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Path</th>
+                    <th>Type</th>
+                    <th>Old Value</th>
+                    <th>New Value</th>
+                </tr>
+            </thead>
+            <tbody>`;
+    
+    data.changes.forEach(change => {
+        html += `
+        <tr>
+            <td><code>${change.path}</code></td>
+            <td>${change.type}</td>
+            <td><code>${change.old_value || '-'}</code></td>
+            <td><code>${change.new_value || '-'}</code></td>
+        </tr>`;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    </div>`;
+    
+    return html;
+}
+
+function exportReport(format) {
+    const params = new URLSearchParams({
+        format,
+        source: currentFilters.source,
+        resourceType: currentFilters.resourceType,
+        severity: currentFilters.severity,
+        dateRange: currentFilters.dateRange
+    });
+    
+    window.location.href = `/api/export/reports?${params.toString()}`;
+}
+</script>
+
+<!-- Change Details Modal -->
+<div class="modal fade" id="changeDetailsModal" tabindex="-1" aria-labelledby="changeDetailsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="changeDetailsTitle">Change Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="changeDetailsBody">
+                <div class="d-flex justify-content-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
