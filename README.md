@@ -11,6 +11,104 @@ A Flask-based web application that monitors and detects configuration changes (d
 - **Authentication**: Secure user authentication and role-based access control
 - **API Support**: RESTful API with Swagger documentation
 - **Automated Polling**: Background scheduler to poll Azure configurations every 30 minutes
+- **Real-time monitoring**: Continuous monitoring of Azure resources
+- **Change history tracking**: Record of all configuration changes
+- **Export capabilities**: Export configuration changes and history
+- **User management**: Manage user roles and permissions
+- **Comprehensive observability**: Use of logging, metrics, tracing, and alerting
+
+## Observability and Monitoring
+
+The application implements a comprehensive observability strategy using a combination of logging, metrics, tracing, and alerting.
+
+### Logging
+
+- **Structured JSON Logging**: All logs are in JSON format for easy parsing and analysis
+- **Log Categories**:
+  - Application: General application logs
+  - Azure: Azure API interactions
+  - Database: Database operations
+  - Security: Authentication and authorization
+  - Performance: Performance-related events
+  - Audit: User actions and system changes
+- **Log Retention**:
+  - Application logs: 30 days
+  - Audit logs: 1 year
+  - Security logs: 1 year
+  - Performance logs: 7 days
+
+### Metrics
+
+- **System Metrics**:
+  - CPU Usage
+  - Memory Usage
+  - Disk I/O
+  - Network I/O
+  - Database Connections
+- **Application Metrics**:
+  - Request Rate
+  - Response Time
+  - Error Rate
+  - Active Users
+  - Resource Polling Status
+- **Business Metrics**:
+  - Drift Detection Rate
+  - Resource Changes
+  - User Actions
+  - Export Operations
+  - Alert Triggers
+
+### Tracing
+
+- **Distributed Tracing** with OpenTelemetry
+- **Trace Points**:
+  - HTTP Requests
+  - Database Queries
+  - Azure API Calls
+  - Background Jobs
+  - Export Operations
+- **Trace Context**:
+  - Request ID
+  - User ID
+  - Resource ID
+  - Operation Type
+  - Duration
+
+### Alerting
+
+- **Alert Levels**:
+  - Info: Non-critical notifications
+  - Warning: Potential issues
+  - Error: Active problems
+  - Critical: System failures
+- **Alert Channels**:
+  - Email
+  - Slack
+  - Azure Monitor
+  - PagerDuty (optional)
+
+## Monitoring Stack
+
+The application uses the following monitoring tools:
+
+1. **ELK Stack**:
+   - Elasticsearch: Log storage and search
+   - Logstash: Log processing
+   - Kibana: Log visualization
+
+2. **Prometheus & Grafana**:
+   - Prometheus: Metrics collection
+   - Grafana: Metrics visualization
+
+3. **Jaeger**:
+   - Distributed tracing
+   - Performance analysis
+   - Error tracking
+
+4. **Application Insights**:
+   - Azure-native monitoring
+   - Performance insights
+   - Error tracking
 
 ## Installation
 
@@ -41,6 +139,23 @@ export SESSION_SECRET="your-secret-key"
 5. Initialize the database:
 ```bash
 flask db upgrade
+```
+
+6. Start the monitoring stack:
+```bash
+# Start ELK stack
+docker-compose -f monitoring/elk/docker-compose.yml up -d
+
+# Start Prometheus and Grafana
+docker-compose -f monitoring/metrics/docker-compose.yml up -d
+
+# Start Jaeger
+docker-compose -f monitoring/tracing/docker-compose.yml up -d
+```
+
+7. Run the application:
+```bash
+flask run
 ```
 
 ## Usage
@@ -131,4 +246,24 @@ python run_tests.py
 3. Commit your changes
 4. Push to the branch
 5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support, please:
+1. Check the [documentation](docs/)
+2. Open an issue
+3. Contact the development team
+
+## Acknowledgments
+
+- Azure SDK for Python
+- Flask framework
+- SQLAlchemy ORM
+- Prometheus monitoring
+- ELK Stack
+- Jaeger tracing
 

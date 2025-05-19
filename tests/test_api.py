@@ -1,12 +1,10 @@
-
-
 import pytest
 import json
 from datetime import datetime, timedelta
 from flask import url_for
 
-from app import app, db
-from models import Configuration, ConfigurationHistory, SigningLog
+from src.core.app import app, db
+from src.core.models import Configuration, ConfigurationHistory, SigningLog
 
 
 def test_dashboard_stats_unauthorized(client):

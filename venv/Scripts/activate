@@ -35,7 +35,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\Projects\Savanna Tech Interview Project\venv"
+VIRTUAL_ENV="C:\Projects\savanna-tech-azure-drift-detector\venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

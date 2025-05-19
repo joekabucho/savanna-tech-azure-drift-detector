@@ -1,19 +1,23 @@
-
 import pytest
 from datetime import datetime, timedelta
 import json
 
-from app import db
-from models import User, Role, Configuration, ConfigurationHistory, SigningLog
+from src.core.app import db
+from src.core.models import User, Role, Configuration, ConfigurationHistory, SigningLog, Tenant
 
 
 def test_user_model(app):
     """Test User model functionality."""
     with app.app_context():
+        # Get default tenant
+        tenant = Tenant.query.first()
+        assert tenant is not None
+        
         user = User()
         user.username = 'testuser'
         user.email = 'test@example.com'
         user.set_password('testpassword')
+        user.tenant_id = tenant.id
         
         db.session.add(user)
         db.session.commit()
@@ -25,6 +29,7 @@ def test_user_model(app):
         assert retrieved_user.email == 'test@example.com'
         assert retrieved_user.check_password('testpassword')
         assert not retrieved_user.check_password('wrongpassword')
+        assert retrieved_user.tenant_id == tenant.id
         
         assert str(retrieved_user) == f"<User {retrieved_user.username}>"
 
@@ -76,7 +81,12 @@ def test_user_role_relationship(app):
 def test_configuration_model(app):
     """Test Configuration model functionality."""
     with app.app_context():
+        # Get default tenant
+        tenant = Tenant.query.first()
+        assert tenant is not None
+        
         config = Configuration()
+        config.tenant_id = tenant.id
         config.source = 'azure'
         config.resource_type = 'VM'
         config.resource_id = '/subscriptions/123/resourceGroups/test/providers/Microsoft.Compute/virtualMachines/test-vm'
@@ -89,6 +99,7 @@ def test_configuration_model(app):
         retrieved_config = Configuration.query.filter_by(resource_id=config.resource_id).first()
         
         assert retrieved_config is not None
+        assert retrieved_config.tenant_id == tenant.id
         assert retrieved_config.source == 'azure'
         assert retrieved_config.resource_type == 'VM'
         assert retrieved_config.resource_name == 'test-vm'
@@ -101,7 +112,12 @@ def test_configuration_model(app):
 def test_configuration_history_model(app):
     """Test ConfigurationHistory model functionality."""
     with app.app_context():
+        # Get default tenant
+        tenant = Tenant.query.first()
+        assert tenant is not None
+        
         config = Configuration()
+        config.tenant_id = tenant.id
         config.source = 'azure'
         config.resource_type = 'Storage'
         config.resource_id = '/subscriptions/123/resourceGroups/test/providers/Microsoft.Storage/storageAccounts/teststorage'
@@ -111,6 +127,7 @@ def test_configuration_history_model(app):
         db.session.commit()
         
         history = ConfigurationHistory()
+        history.tenant_id = tenant.id
         history.configuration_id = config.id
         history.previous_config = {'name': 'teststorage', 'sku': 'Standard_LRS', 'location': 'eastus'}
         history.new_config = {'name': 'teststorage', 'sku': 'Premium_LRS', 'location': 'eastus'}
@@ -123,6 +140,7 @@ def test_configuration_history_model(app):
         retrieved_history = ConfigurationHistory.query.filter_by(configuration_id=config.id).first()
         
         assert retrieved_history is not None
+        assert retrieved_history.tenant_id == tenant.id
         assert retrieved_history.configuration_id == config.id
         assert retrieved_history.previous_config['sku'] == 'Standard_LRS'
         assert retrieved_history.new_config['sku'] == 'Premium_LRS'
@@ -135,8 +153,13 @@ def test_configuration_history_model(app):
 def test_signing_log_model(app):
     """Test SigningLog model functionality."""
     with app.app_context():
+        # Get default tenant
+        tenant = Tenant.query.first()
+        assert tenant is not None
+        
         # Create a test signing log
         log = SigningLog()
+        log.tenant_id = tenant.id
         log.log_id = 'abc123'
         log.timestamp = datetime.utcnow()
         log.actor = 'testuser@example.com'
@@ -152,6 +175,7 @@ def test_signing_log_model(app):
         retrieved_log = SigningLog.query.filter_by(log_id='abc123').first()
         
         assert retrieved_log is not None
+        assert retrieved_log.tenant_id == tenant.id
         assert retrieved_log.log_id == 'abc123'
         assert retrieved_log.actor == 'testuser@example.com'
         assert retrieved_log.action == 'SignIn'

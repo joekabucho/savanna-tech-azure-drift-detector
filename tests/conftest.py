@@ -1,11 +1,10 @@
-
 import os
 import pytest
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
 
-from app import app as flask_app, db
-from models import User, Role
+from src.core.app import app as flask_app, db
+from src.core.models import User, Role, Tenant
 
 
 @pytest.fixture
@@ -21,6 +20,14 @@ def app():
     with flask_app.app_context():
         db.create_all()
         
+        # Create default tenant
+        default_tenant = Tenant(
+            name='Default Tenant',
+            azure_tenant_id='test-tenant-id'
+        )
+        db.session.add(default_tenant)
+        db.session.commit()
+        
         admin_role = Role(name='admin', description='Administrator role with full access')
         operator_role = Role(name='operator', description='Operator role with monitoring access')
         user_role = Role(name='user', description='Regular user with read-only access')
@@ -35,7 +42,8 @@ def app():
             first_name='Admin',
             last_name='User',
             active=True,
-            last_login=datetime.utcnow()
+            last_login=datetime.utcnow(),
+            tenant_id=default_tenant.id
         )
         admin_user.roles.append(admin_role)
         
@@ -46,7 +54,8 @@ def app():
             first_name='Operator',
             last_name='User',
             active=True,
-            last_login=datetime.utcnow()
+            last_login=datetime.utcnow(),
+            tenant_id=default_tenant.id
         )
         operator_user.roles.append(operator_role)
         
@@ -57,7 +66,8 @@ def app():
             first_name='Regular',
             last_name='User',
             active=True,
-            last_login=datetime.utcnow()
+            last_login=datetime.utcnow(),
+            tenant_id=default_tenant.id
         )
         regular_user.roles.append(user_role)
         
