@@ -1,8 +1,8 @@
-from app import app, db
-import auth
+from src.core.app import app, db
+import src.auth.auth as auth
 
-from api import api_bp
-from swagger import swagger_ui_blueprint, swagger_bp, SWAGGER_URL
+from src.api.api import api_bp
+from src.api.swagger import swagger_ui_blueprint, swagger_bp, SWAGGER_URL
 
 app.register_blueprint(api_bp, name='api_v1')
 app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)

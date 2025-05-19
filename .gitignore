@@ -1,0 +1,22 @@
+# Python virtual environments
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment files
+.env
+.env.*
+
+# Other common ignores
+*.sqlite3
+*.db
+instance/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.DS_Store 
