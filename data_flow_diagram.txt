@@ -1,0 +1,140 @@
+Azure Drift Detector - Data Flow Diagram
+
+1. User Authentication Flow
+   Input: User credentials
+   Process:
+   1. User submits credentials
+   2. System validates against Azure AD
+   3. System generates session token
+   4. System stores session in Redis cache
+   Output: Authentication token
+   Data Stores: User table, Session cache
+
+2. Resource Configuration Collection Flow
+   Input: Azure resource identifiers
+   Process:
+   1. Polling service requests Azure API
+   2. System collects current configurations
+   3. System normalizes configuration data
+   4. System stores in database
+   Output: Resource configurations
+   Data Stores: Configuration table
+
+3. Drift Detection Flow
+   Input: Current and baseline configurations
+   Process:
+   1. System compares configurations
+   2. System identifies changes
+   3. System classifies severity
+   4. System generates drift report
+   Output: Drift detection results
+   Data Stores: ConfigurationHistory table
+
+4. Notification Flow
+   Input: Drift detection results
+   Process:
+   1. System evaluates notification rules
+   2. System formats notification message
+   3. System sends to configured channels
+   4. System logs notification
+   Output: Notifications
+   Data Stores: Notification logs
+
+5. Audit Logging Flow
+   Input: System events and user actions
+   Process:
+   1. System captures event details
+   2. System enriches with context
+   3. System stores in database
+   4. System forwards to monitoring stack
+   Output: Audit logs
+   Data Stores: SigningLog table, ELK stack
+
+6. Configuration History Flow
+   Input: Configuration changes
+   Process:
+   1. System captures change details
+   2. System stores previous state
+   3. System records change metadata
+   4. System updates current state
+   Output: Configuration history
+   Data Stores: ConfigurationHistory table
+
+7. Tenant Management Flow
+   Input: Tenant configuration
+   Process:
+   1. System validates tenant data
+   2. System creates tenant record
+   3. System initializes settings
+   4. System sets up monitoring
+   Output: Tenant configuration
+   Data Stores: Tenant table, Settings table
+
+8. API Request Flow
+   Input: API requests
+   Process:
+   1. System validates request
+   2. System checks permissions
+   3. System processes request
+   4. System formats response
+   Output: API responses
+   Data Stores: Various tables based on request
+
+Data Stores Description:
+
+1. User Table
+   - Stores user information
+   - Contains authentication data
+   - Links to tenant and role
+
+2. Configuration Table
+   - Stores current resource states
+   - Contains configuration data
+   - Links to tenant
+
+3. ConfigurationHistory Table
+   - Stores configuration changes
+   - Contains change metadata
+   - Links to configuration
+
+4. SigningLog Table
+   - Stores audit information
+   - Contains event details
+   - Links to tenant
+
+5. Settings Table
+   - Stores tenant settings
+   - Contains configuration preferences
+   - Links to tenant
+
+6. Redis Cache
+   - Stores session data
+   - Caches frequent queries
+   - Temporary data storage
+
+7. ELK Stack
+   - Stores system logs
+   - Contains monitoring data
+   - Long-term log storage
+
+External Systems:
+
+1. Azure AD
+   - Provides authentication
+   - Manages user identities
+   - Handles SSO
+
+2. Azure Resources
+   - Source of configurations
+   - Monitored resources
+   - Configuration targets
+
+3. Notification Channels
+   - Email service
+   - Slack integration
+   - Webhook endpoints
+
+4. Monitoring Stack
+   - Prometheus for metrics
+   - Grafana for visualization
+   - ELK for logging 
