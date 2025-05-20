@@ -1,0 +1,148 @@
+Azure Drift Detector - Entity Relationship Diagram
+
+Entities and Their Attributes:
+
+1. Tenant
+   - id (Primary Key, Integer)
+   - name (String)
+   - azure_tenant_id (String)
+   - created_at (DateTime)
+
+2. User
+   - id (Primary Key, Integer)
+   - tenant_id (Foreign Key, Integer)
+   - username (String)
+   - email (String)
+   - password_hash (String)
+   - first_name (String)
+   - last_name (String)
+   - microsoft_id (String)
+   - access_token (Text)
+   - refresh_token (Text)
+   - token_expiry (DateTime)
+   - created_at (DateTime)
+   - last_login (DateTime)
+   - active (Boolean)
+
+3. Role
+   - id (Primary Key, Integer)
+   - name (String)
+   - description (String)
+   - permissions (JSON)
+
+4. Configuration
+   - id (Primary Key, Integer)
+   - tenant_id (Foreign Key, Integer)
+   - source (String)
+   - resource_type (String)
+   - resource_id (String)
+   - resource_name (String)
+   - config_data (JSON)
+   - last_updated (DateTime)
+
+5. ConfigurationHistory
+   - id (Primary Key, Integer)
+   - configuration_id (Foreign Key, Integer)
+   - previous_config (JSON)
+   - new_config (JSON)
+   - changed_at (DateTime)
+   - change_type (String)
+   - changed_by (String)
+
+6. SigningLog
+   - id (Primary Key, Integer)
+   - tenant_id (Foreign Key, Integer)
+   - log_id (String)
+   - timestamp (DateTime)
+   - actor (String)
+   - action (String)
+   - resource (String)
+   - status (String)
+   - client_ip (String)
+   - log_data (JSON)
+   - ingested_at (DateTime)
+
+7. Settings
+   - id (Primary Key, Integer)
+   - tenant_id (Foreign Key, Integer)
+   - notification_settings (JSON)
+   - polling_settings (JSON)
+   - drift_thresholds (JSON)
+   - last_updated (DateTime)
+
+Relationships:
+
+1. Tenant to User (One-to-Many)
+   - A tenant can have multiple users
+   - Each user belongs to exactly one tenant
+   - Foreign Key: User.tenant_id references Tenant.id
+
+2. Tenant to Configuration (One-to-Many)
+   - A tenant can have multiple configurations
+   - Each configuration belongs to exactly one tenant
+   - Foreign Key: Configuration.tenant_id references Tenant.id
+
+3. Tenant to Settings (One-to-Many)
+   - A tenant can have multiple settings
+   - Each setting belongs to exactly one tenant
+   - Foreign Key: Settings.tenant_id references Tenant.id
+
+4. Tenant to SigningLog (One-to-Many)
+   - A tenant can have multiple signing logs
+   - Each signing log belongs to exactly one tenant
+   - Foreign Key: SigningLog.tenant_id references Tenant.id
+
+5. User to Role (Many-to-One)
+   - Multiple users can have the same role
+   - Each user has exactly one role
+   - Foreign Key: User.role_id references Role.id
+
+6. Configuration to ConfigurationHistory (One-to-Many)
+   - A configuration can have multiple history entries
+   - Each history entry belongs to exactly one configuration
+   - Foreign Key: ConfigurationHistory.configuration_id references Configuration.id
+
+Entity Descriptions:
+
+1. Tenant
+   - Primary entity representing an organization
+   - Contains tenant-specific settings and configurations
+   - Links to Azure AD tenant ID
+   - One-to-many relationships with Users, Configurations, Settings, and SigningLogs
+
+2. User
+   - Represents system users
+   - Belongs to a tenant
+   - Has role-based permissions
+   - Stores Microsoft authentication tokens
+   - Many-to-one relationship with Tenant
+   - Many-to-one relationship with Role
+
+3. Role
+   - Defines user permissions and access levels
+   - Contains permission definitions in JSON format
+   - One-to-many relationship with Users
+
+4. Configuration
+   - Stores current state of Azure resources
+   - Links to tenant
+   - Contains resource type, ID, and configuration data
+   - Many-to-one relationship with Tenant
+   - One-to-many relationship with ConfigurationHistory
+
+5. ConfigurationHistory
+   - Tracks changes to resource configurations
+   - Stores previous and new configuration states
+   - Records who made the change and when
+   - Many-to-one relationship with Configuration
+
+6. SigningLog
+   - Tracks Azure sign-in activities
+   - Stores audit information
+   - Links to tenant
+   - Many-to-one relationship with Tenant
+
+7. Settings
+   - Stores tenant-specific configuration settings
+   - Includes notification, polling, and drift threshold settings
+   - Many-to-one relationship with Tenant 

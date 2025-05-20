@@ -1,0 +1,231 @@
+ Azure Drift Detector - System Design Document
+
+ 1.  Architecture Components:
+
+1. Client Layer
+   - Web Interface: Flask-based UI for user interaction
+   - REST API: Swagger-documented endpoints for programmatic access
+
+2. Application Layer
+   - Authentication Service: Handles user auth via Azure AD
+   - Drift Detection Service: Core business logic for detecting changes
+   - Resource Polling Service: Collects Azure resource configurations
+   - Notification Service: Manages alerts and notifications
+
+3. Data Layer
+   - PostgreSQL Database: Stores configurations, users, and audit logs
+   - Redis Cache: Caches frequently accessed data and session info
+
+4. External Services
+   - Azure Resources: Monitored infrastructure
+   - Azure AD: Authentication provider
+   - Monitoring Stack: ELK, Prometheus, Grafana for observability
+
+ Key Entities:
+
+1. Tenant
+   - Primary entity representing an organization
+   - Contains tenant-specific settings and configurations
+   - Links to Azure AD tenant ID
+
+2. User
+   - Represents system users
+   - Belongs to a tenant
+   - Has role-based permissions
+   - Stores Microsoft authentication tokens
+
+3. Configuration
+   - Stores current state of Azure resources
+   - Links to tenant
+   - Contains resource type, ID, and configuration data
+   - Maintains version history
+
+4. SigningLog
+   - Tracks Azure sign-in activities
+   - Stores audit information
+   - Links to tenant and resources
+
+ 3. Security Measures
+
+1. Authentication & Authorization
+   - Azure AD integration for enterprise authentication
+   - Role-based access control (RBAC)
+   - Multi-tenant isolation
+   - Token-based API authentication
+
+2. Data Security
+   - Encryption at rest for sensitive data
+   - Secure credential management
+   - Tenant data isolation
+   - Audit logging for all operations
+
+3. Application Security
+   - CSRF protection
+   - Rate limiting
+   - Input validation
+   - Secure headers (Talisman)
+   - Session management
+
+ 4. Scaling Challenges and Solutions
+
+ Current Challenges:
+
+1. Database Scaling
+   - Single PostgreSQL instance
+   - No read replicas
+   - Limited connection pooling
+
+2. Resource Polling
+   - Synchronous polling
+   - No distributed processing
+   - Limited caching
+
+3. API Performance
+   - Single application instance
+   - No load balancing
+   - Limited caching
+
+ Scaling Solutions:
+
+1. Database Scaling
+   - Implement read replicas
+   - Add connection pooling
+   - Implement database sharding by tenant
+   - Use database partitioning for large tables
+
+2. Resource Polling
+   - Implement message queue (RabbitMQ/Kafka)
+   - Use worker pools for parallel processing
+   - Implement distributed polling
+   - Add caching layer
+
+3. API Scaling
+   - Implement load balancing
+   - Use application clustering
+   - Add API gateway
+   - Implement CDN for static content
+
+ 5. Scaling to 1M+ Users
+
+ Infrastructure Changes:
+
+1. Database
+   - Implement database sharding
+   - Use managed database service
+   - Implement caching strategy
+   - Add read replicas
+
+2. Application
+   - Container orchestration (Kubernetes)
+   - Auto-scaling
+   - Load balancing
+   - Service mesh
+
+3. Monitoring
+   - Distributed tracing
+   - Real-time metrics
+   - Automated scaling
+   - Performance monitoring
+
+ Code Changes:
+
+1. API Layer
+   - Implement rate limiting
+   - Add request queuing
+   - Optimize database queries
+   - Implement caching
+
+2. Polling Service
+   - Implement distributed polling
+   - Add worker pools
+   - Implement backoff strategies
+   - Add circuit breakers
+
+ 6. Potential Bottlenecks
+
+1. Database Operations
+   - Solution: Implement caching, read replicas, query optimization
+
+2. Azure API Rate Limits
+   - Solution: Implement rate limiting, backoff strategies
+
+3. Resource Polling
+   - Solution: Distributed processing, message queues
+
+4. Authentication
+   - Solution: Token caching, distributed session management
+
+ 7. Components Needing Redesign
+
+1. Polling System
+   - Current: Synchronous, single-threaded
+   - Needed: Asynchronous, distributed
+
+2. Database Layer
+   - Current: Single instance
+   - Needed: Sharded, replicated
+
+3. Authentication
+   - Current: Basic token management
+   - Needed: Distributed session management
+
+4. Monitoring
+   - Current: Basic logging
+   - Needed: Distributed tracing, metrics
+
+ 8. Technical Decision Log
+
+ 1. Multi-tenant Architecture
+- Problem: Need to support multiple organizations
+- Options:
+  - Separate instances per tenant
+  - Shared instance with tenant isolation
+- Decision: Shared instance with tenant isolation
+- Rationale: Better resource utilization, easier maintenance
+- Trade-offs: 
+  - Pros: Cost-effective, simpler deployment
+  - Cons: Requires careful data isolation
+
+ 2. Authentication Strategy
+- Problem: Secure user authentication
+- Options:
+  - Custom authentication
+  - Azure AD integration
+- Decision: Azure AD integration
+- Rationale: Enterprise-grade security, SSO support
+- Trade-offs:
+  - Pros: Secure, maintainable
+  - Cons: Azure dependency
+
+ 3. Database Choice
+- Problem: Data storage and querying
+- Options:
+  - NoSQL (MongoDB)
+  - SQL (PostgreSQL)
+- Decision: PostgreSQL
+- Rationale: ACID compliance, relational data model
+- Trade-offs:
+  - Pros: Data integrity, complex queries
+  - Cons: Scaling complexity
+
+ 4. Polling Architecture
+- Problem: Resource configuration collection
+- Options:
+  - Synchronous polling
+  - Asynchronous with message queue
+- Decision: Synchronous polling (initial)
+- Rationale: Simpler implementation, easier debugging
+- Trade-offs:
+  - Pros: Simple, predictable
+  - Cons: Limited scalability
+
+ 5. Monitoring Stack
+- Problem: System observability
+- Options:
+  - Basic logging
+  - Full observability stack
+- Decision: Full observability stack (ELK, Prometheus, Grafana)
+- Rationale: Comprehensive monitoring, debugging
+- Trade-offs:
+  - Pros: Better visibility, debugging
+  - Cons: Increased complexity, resource usage 
