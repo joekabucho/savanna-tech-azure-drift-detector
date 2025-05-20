@@ -75,7 +75,7 @@ The application maintains tenant context through:
    - Azure credentials are tenant-specific
    - Resource access is limited to tenant's subscriptions
    - API calls are authenticated per tenant
-
+ddfsdafadsf
 ## Tenant Management
 
 ### Provisioning
