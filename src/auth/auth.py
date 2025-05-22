@@ -62,14 +62,12 @@ print(f"[DEBUG] AZURE_CLIENT_SECRET: {'*' * 8 if os.environ.get('AZURE_CLIENT_SE
 print(f"[DEBUG] AZURE_SUBSCRIPTION_ID: {os.environ.get('AZURE_SUBSCRIPTION_ID')}")
 
 # Microsoft OAuth configuration
-azure_client_id = "cc3c5562-ad5d-4b7f-aa97-04be2f286894"
-azure_client_secret = "~Hc8Q~-Tnvzqk4QNbH-guHofTd7R1ulF452DgcaW"
-azure_tenant_id = "2b3c29de-9f5a-4ec0-b8a7-6ca431fe6976"
 
 
-# azure_client_id = os.environ.get("AZURE_CLIENT_ID")
-# azure_client_secret = os.environ.get("AZURE_CLIENT_SECRET")
-# azure_tenant_id = os.environ.get("AZURE_TENANT_ID")
+
+azure_client_id = os.environ.get("AZURE_CLIENT_ID")
+azure_client_secret = os.environ.get("AZURE_CLIENT_SECRET")
+azure_tenant_id = os.environ.get("AZURE_TENANT_ID")
 
 # Define microsoft variable with a default value
 microsoft = None

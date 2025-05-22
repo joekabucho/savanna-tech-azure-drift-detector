@@ -267,6 +267,43 @@ For support, please:
 - ELK Stack
 - Jaeger tracing
 
+## Running without Docker
+
+If you prefer to run the application directly without Docker:
+
+1. **Create and activate a virtual environment:**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Set up environment variables:**
+   Create a `.env` file in the project root with your configuration:
+   ```
+   DATABASE_URL=postgresql://user:password@localhost/dbname
+   SESSION_SECRET=your-secret-key
+   AZURE_CLIENT_ID=your-azure-client-id
+   AZURE_CLIENT_SECRET=your-azure-client-secret
+   AZURE_TENANT_ID=your-azure-tenant-id
+   ```
+
+4. **Initialize the database:**
+   ```bash
+   flask db upgrade
+   ```
+
+5. **Run the application:**
+   ```bash
+   python main.py
+   ```
+
+The application will be available at [http://localhost:5000](http://localhost:5000).
+
 ## Running with Docker
 
 You can run BlindspotX Azure Drift Detector using Docker and Docker Compose for easy local development and deployment.
