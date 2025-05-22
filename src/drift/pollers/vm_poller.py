@@ -5,105 +5,103 @@ This module provides functionality for polling Azure Virtual Machine configurati
 """
 
 import logging
-from .base import BasePoller
+import requests
+from datetime import datetime
+from ..azure_poller import save_configuration
 
 logger = logging.getLogger(__name__)
 
-class VMPoller(BasePoller):
-    """
-    Poller for Azure Virtual Machine resources.
+class VMPoller:
+    """Poller for Azure Virtual Machine configurations."""
     
-    This class handles polling of VM configurations including:
-    - VM properties and settings
-    - Network interfaces
-    - Disks
-    - Extensions
-    """
-    
-    def poll(self):
+    def __init__(self, access_token):
         """
-        Poll all VMs in the subscription.
-        
-        Returns:
-            bool: True if polling was successful, False otherwise
-        """
-        try:
-            # Get all VMs in the subscription
-            url = f"https://management.azure.com/subscriptions/{self.subscription_id}/providers/Microsoft.Compute/virtualMachines?api-version=2023-07-01"
-            vms = self.make_request(url)
-            
-            if not vms or 'value' not in vms:
-                logger.warning("No VMs found or invalid response")
-                return False
-            
-            for vm in vms['value']:
-                self._poll_vm_details(vm)
-            
-            return True
-            
-        except Exception as e:
-            logger.exception(f"Error polling VMs: {str(e)}")
-            return False
-    
-    def _poll_vm_details(self, vm):
-        """
-        Poll detailed configuration for a specific VM.
+        Initialize VM poller.
         
         Args:
-            vm (dict): Basic VM information from list call
+            access_token (str): Azure access token
+        """
+        self.access_token = access_token
+        self.subscription_id = None
+        
+    def poll(self):
+        """Poll VM configurations for the current subscription."""
+        if not self.subscription_id:
+            logger.error("Subscription ID not set")
+            return
+            
+        try:
+            # Get list of VMs
+            vms = self._get_vm_list()
+            
+            # Poll each VM
+            for vm in vms:
+                vm_id = vm['id']
+                vm_name = vm['name']
+                vm_config = self._get_vm_config(vm_id)
+                
+                if vm_config:
+                    # Save configuration
+                    save_configuration(
+                        source='azure',
+                        resource_type='virtual_machine',
+                        resource_id=vm_id,
+                        resource_name=vm_name,
+                        config_data=vm_config
+                    )
+                    
+        except Exception as e:
+            logger.exception(f"Error polling VMs: {str(e)}")
+            
+    def _get_vm_list(self):
+        """
+        Get list of VMs in the subscription.
+        
+        Returns:
+            list: List of VM objects
         """
         try:
-            vm_id = vm['id']
-            vm_name = vm['name']
-            
-            # Get detailed VM configuration
-            vm_details = self.make_request(f"{vm_id}?api-version=2023-07-01")
-            if not vm_details:
-                return
-            
-            # Get network interfaces
-            network_interfaces = []
-            for nic_ref in vm_details.get('properties', {}).get('networkProfile', {}).get('networkInterfaces', []):
-                nic_id = nic_ref['id']
-                nic_details = self.make_request(f"{nic_id}?api-version=2023-07-01")
-                if nic_details:
-                    network_interfaces.append(nic_details)
-            
-            # Get disks
-            disks = []
-            for disk_ref in vm_details.get('properties', {}).get('storageProfile', {}).get('dataDisks', []):
-                disk_id = disk_ref['managedDisk']['id']
-                disk_details = self.make_request(f"{disk_id}?api-version=2023-07-01")
-                if disk_details:
-                    disks.append(disk_details)
-            
-            # Get extensions
-            extensions = []
-            extensions_url = f"{vm_id}/extensions?api-version=2023-07-01"
-            extensions_list = self.make_request(extensions_url)
-            if extensions_list and 'value' in extensions_list:
-                for ext in extensions_list['value']:
-                    ext_id = ext['id']
-                    ext_details = self.make_request(f"{ext_id}?api-version=2023-07-01")
-                    if ext_details:
-                        extensions.append(ext_details)
-            
-            # Combine all configuration data
-            config_data = {
-                'vm_details': vm_details,
-                'network_interfaces': network_interfaces,
-                'disks': disks,
-                'extensions': extensions
+            url = f"https://management.azure.com/subscriptions/{self.subscription_id}/providers/Microsoft.Compute/virtualMachines?api-version=2021-04-01"
+            headers = {
+                'Authorization': f'Bearer {self.access_token}',
+                'Content-Type': 'application/json'
             }
             
-            # Save the configuration
-            self.save_configuration(
-                source='azure',
-                resource_type='virtual_machine',
-                resource_id=vm_id,
-                resource_name=vm_name,
-                config_data=config_data
-            )
-            
+            response = requests.get(url, headers=headers)
+            if response.status_code == 200:
+                return response.json().get('value', [])
+            else:
+                logger.warning(f"Failed to get VM list: {response.status_code}")
+                return []
+                
         except Exception as e:
-            logger.exception(f"Error polling VM details: {str(e)}") 
+            logger.exception(f"Error getting VM list: {str(e)}")
+            return []
+            
+    def _get_vm_config(self, vm_id):
+        """
+        Get detailed configuration for a VM.
+        
+        Args:
+            vm_id (str): VM resource ID
+            
+        Returns:
+            dict: VM configuration or None if request fails
+        """
+        try:
+            url = f"https://management.azure.com{vm_id}?api-version=2021-04-01"
+            headers = {
+                'Authorization': f'Bearer {self.access_token}',
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.get(url, headers=headers)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.warning(f"Failed to get VM config for {vm_id}: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            logger.exception(f"Error getting VM config: {str(e)}")
+            return None 
