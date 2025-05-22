@@ -25,6 +25,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
 import pathlib
+from pathlib import Path
 
 from src.core.app import app, db
 from src.core.models import User, Role, UserRole, Tenant, LoginAttempt
@@ -45,26 +46,58 @@ limiter = Limiter(
 # Initialize OAuth for Microsoft authentication
 oauth = OAuth(app)
 
-# Load environment variables
-project_root = pathlib.Path(__file__).parent.parent.parent.resolve()
-dotenv_path = project_root / ".env"
-print(f"[DEBUG] Looking for .env file at: {dotenv_path}")
-print(f"[DEBUG] .env file exists: {dotenv_path.exists()}")
+def load_environment_variables():
+    """Load environment variables from .env file."""
+    # Try multiple possible locations for .env file
+    possible_env_paths = [
+        Path(__file__).parent.parent.parent / ".env",  # Project root
+        Path(__file__).parent.parent / ".env",         # src directory
+        Path.cwd() / ".env",                           # Current working directory
+        Path.home() / ".env",                          # Home directory
+    ]
+
+    # Debug: Print all possible paths
+    print("\n[DEBUG] Checking for .env file in the following locations:")
+    for path in possible_env_paths:
+        print(f"[DEBUG] Checking: {path} (exists: {path.exists()})")
+
+    # Try to load .env from the first existing location
+    env_loaded = False
+    for env_path in possible_env_paths:
+        if env_path.exists():
+            print(f"\n[DEBUG] Loading .env from: {env_path}")
+            load_dotenv(dotenv_path=env_path, override=True)
+            env_loaded = True
+            break
+
+    if not env_loaded:
+        print("\n[WARNING] No .env file found in any of the expected locations!")
+        return False
+
+    # Verify required environment variables
+    required_vars = ['AZURE_TENANT_ID', 'AZURE_CLIENT_ID', 'AZURE_CLIENT_SECRET']
+    missing_vars = [var for var in required_vars if not os.environ.get(var)]
+    
+    if missing_vars:
+        print(f"\n[ERROR] Missing required environment variables: {', '.join(missing_vars)}")
+        return False
+
+    # Debug: Print all environment variables (masking sensitive values)
+    print("\n[DEBUG] Environment variables after loading:")
+    print(f"[DEBUG] AZURE_TENANT_ID: {os.environ.get('AZURE_TENANT_ID', 'Not set')}")
+    print(f"[DEBUG] AZURE_CLIENT_ID: {os.environ.get('AZURE_CLIENT_ID', 'Not set')}")
+    print(f"[DEBUG] AZURE_CLIENT_SECRET: {'*' * 8 if os.environ.get('AZURE_CLIENT_SECRET') else 'Not set'}")
+    print(f"[DEBUG] AZURE_SUBSCRIPTION_ID: {os.environ.get('AZURE_SUBSCRIPTION_ID', 'Not set')}")
+    print(f"[DEBUG] DATABASE_URL: {os.environ.get('DATABASE_URL', 'Not set')}")
+    print(f"[DEBUG] SESSION_SECRET: {'*' * 8 if os.environ.get('SESSION_SECRET') else 'Not set'}")
+    
+    return True
 
 # Load environment variables
-load_dotenv(dotenv_path=dotenv_path)
-
-# Debug: Print loaded Azure OIDC config values
-print("[DEBUG] Environment variables loaded:")
-print(f"[DEBUG] AZURE_TENANT_ID: {os.environ.get('AZURE_TENANT_ID')}")
-print(f"[DEBUG] AZURE_CLIENT_ID: {os.environ.get('AZURE_CLIENT_ID')}")
-print(f"[DEBUG] AZURE_CLIENT_SECRET: {'*' * 8 if os.environ.get('AZURE_CLIENT_SECRET') else None}")
-print(f"[DEBUG] AZURE_SUBSCRIPTION_ID: {os.environ.get('AZURE_SUBSCRIPTION_ID')}")
+if not load_environment_variables():
+    logger.error("Failed to load required environment variables. OAuth will not be configured.")
 
 # Microsoft OAuth configuration
-
-
-
 azure_client_id = os.environ.get("AZURE_CLIENT_ID")
 azure_client_secret = os.environ.get("AZURE_CLIENT_SECRET")
 azure_tenant_id = os.environ.get("AZURE_TENANT_ID")
@@ -74,20 +107,25 @@ microsoft = None
 
 # Register Microsoft OAuth provider if credentials are available
 if azure_client_id and azure_client_secret and azure_tenant_id:
-    print(f"[DEBUG] Registering Microsoft OAuth with tenant ID: {azure_tenant_id}")
-    microsoft = oauth.register(
-        name='microsoft',
-        client_id=azure_client_id,
-        client_secret=azure_client_secret,
-        server_metadata_url=f'https://login.microsoftonline.com/{azure_tenant_id}/v2.0/.well-known/openid-configuration',
-        authorize_url=f'https://login.microsoftonline.com/{azure_tenant_id}/oauth2/v2.0/authorize',
-        token_url=f'https://login.microsoftonline.com/{azure_tenant_id}/oauth2/v2.0/token',
-        client_kwargs={
-            'scope': 'openid email profile offline_access https://graph.microsoft.com/.default',
-            'redirect_uri': 'http://localhost:5000/authorize/microsoft',
-            'prompt': 'select_account',
-        },
-    )
+    print(f"\n[DEBUG] Registering Microsoft OAuth with tenant ID: {azure_tenant_id}")
+    try:
+        microsoft = oauth.register(
+            name='microsoft',
+            client_id=azure_client_id,
+            client_secret=azure_client_secret,
+            server_metadata_url=f'https://login.microsoftonline.com/{azure_tenant_id}/v2.0/.well-known/openid-configuration',
+            authorize_url=f'https://login.microsoftonline.com/{azure_tenant_id}/oauth2/v2.0/authorize',
+            token_url=f'https://login.microsoftonline.com/{azure_tenant_id}/oauth2/v2.0/token',
+            client_kwargs={
+                'scope': 'openid email profile offline_access https://graph.microsoft.com/.default',
+                'redirect_uri': 'http://localhost:5000/authorize/microsoft',
+                'prompt': 'select_account',
+            },
+        )
+        print("[DEBUG] Microsoft OAuth provider registered successfully")
+    except Exception as e:
+        logger.error(f"Failed to register Microsoft OAuth provider: {str(e)}")
+        microsoft = None
 else:
     logger.warning("Microsoft OAuth not configured: missing required credentials")
     if not azure_client_id:
@@ -244,8 +282,22 @@ def authorize_microsoft():
         resp = microsoft.get('https://graph.microsoft.com/v1.0/me')
         profile = resp.json()
         
-        # Get Microsoft ID
+        # Get Microsoft ID and tenant ID
         microsoft_id = profile.get('id')
+        tenant_id = os.environ.get('AZURE_TENANT_ID')
+        
+        if not tenant_id:
+            logger.error("AZURE_TENANT_ID not found in environment variables")
+            flash('Authentication configuration error', 'danger')
+            return redirect(url_for('login'))
+        
+        # Find or create tenant
+        tenant = Tenant.query.filter_by(azure_tenant_id=tenant_id).first()
+        if not tenant:
+            tenant = Tenant(name=f"Tenant {tenant_id}", azure_tenant_id=tenant_id)
+            db.session.add(tenant)
+            db.session.commit()
+            logger.info(f"Created new tenant with ID: {tenant.id}")
         
         # Find or create user
         user = User.query.filter_by(microsoft_id=microsoft_id).first()
@@ -273,6 +325,7 @@ def authorize_microsoft():
                 user.refresh_token = token.get('refresh_token')
                 user.token_expiry = datetime.utcnow() + timedelta(seconds=token.get('expires_in', 3600))
                 user.password_hash = generate_password_hash(os.urandom(24).hex())  # Random password for MS auth users
+                user.tenant_id = tenant.id  # Set the tenant_id
                 
                 # Add default role (viewer)
                 viewer_role = Role.query.filter_by(name='viewer').first()
