@@ -10,6 +10,7 @@ import logging
 import msal
 from datetime import datetime, timedelta
 from .pollers import VMPoller, StoragePoller, NSGPoller, KeyVaultPoller
+from src.core.mongodb import get_collection
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,38 @@ def get_azure_token():
     except Exception as e:
         logger.exception(f"Error acquiring tokens: {str(e)}")
         return None, None
+
+def save_configuration(source, resource_type, resource_id, resource_name, config_data):
+    """
+    Save resource configuration to MongoDB.
+    
+    Args:
+        source (str): Source of the configuration (e.g., 'azure', 'm365')
+        resource_type (str): Type of resource
+        resource_id (str): Resource identifier
+        resource_name (str): Resource name
+        config_data (dict): Configuration data
+    """
+    try:
+        configs_collection = get_collection('configurations')
+        
+        # Create configuration document
+        config_doc = {
+            'source': source,
+            'resource_type': resource_type,
+            'resource_id': resource_id,
+            'resource_name': resource_name,
+            'config_data': config_data,
+            'timestamp': datetime.utcnow()
+        }
+        
+        # Insert into MongoDB
+        configs_collection.insert_one(config_doc)
+        logger.debug(f"Saved configuration for {resource_type} {resource_id}")
+        
+    except Exception as e:
+        logger.error(f"Error saving configuration: {str(e)}")
+        raise
 
 def poll_azure_configurations():
     """
@@ -180,7 +213,7 @@ def poll_entra_signing_logs():
     Poll Entra ID (Azure AD) sign-in logs.
     
     This function retrieves sign-in logs from Azure AD and ingests them
-    into the database for analysis.
+    into MongoDB for analysis.
     """
     try:
         # Get access token
@@ -219,9 +252,20 @@ def poll_entra_signing_logs():
         
         if response.status_code == 200:
             logs = response.json()
+            # Get MongoDB collection
+            logs_collection = get_collection('signin_logs')
+            
             # Process and store logs
             for log in logs.get('tables', [])[0].get('rows', []):
-                save_signin_log(log)
+                log_doc = {
+                    'timestamp': datetime.strptime(log[0], '%Y-%m-%dT%H:%M:%S.%fZ'),
+                    'user_principal_name': log[1],
+                    'app_display_name': log[2],
+                    'ip_address': log[3],
+                    'location': log[4],
+                    'status': log[5]
+                }
+                logs_collection.insert_one(log_doc)
             return True
         else:
             logger.warning(f"Failed to get sign-in logs: {response.status_code}")
@@ -230,75 +274,3 @@ def poll_entra_signing_logs():
     except Exception as e:
         logger.exception(f"Error polling sign-in logs: {str(e)}")
         return False
-
-def save_configuration(source, resource_type, resource_id, resource_name, config_data):
-    """
-    Save or update a resource configuration.
-    
-    Args:
-        source (str): Source of the configuration (e.g., 'azure', 'm365')
-        resource_type (str): Type of resource
-        resource_id (str): Unique identifier for the resource
-        resource_name (str): Display name of the resource
-        config_data (dict): Configuration data to store
-    """
-    try:
-        from src.core.app import db
-        from src.core.models import Configuration
-        
-        config = Configuration.query.filter_by(
-            source=source,
-            resource_type=resource_type,
-            resource_id=resource_id
-        ).first()
-        
-        if config:
-            if config.config_data != config_data:
-                config.config_data = config_data
-                config.last_updated = datetime.utcnow()
-                db.session.commit()
-        else:
-            new_config = Configuration(
-                source=source,
-                resource_type=resource_type,
-                resource_id=resource_id,
-                resource_name=resource_name,
-                config_data=config_data
-            )
-            db.session.add(new_config)
-            db.session.commit()
-            
-    except Exception as e:
-        logger.exception(f"Error saving configuration: {str(e)}")
-        db.session.rollback()
-
-def save_signin_log(log_data):
-    """
-    Save a sign-in log entry.
-    
-    Args:
-        log_data (list): List containing log entry data
-    """
-    try:
-        from src.core.app import db
-        from src.core.models import SignInLog
-        
-        # Extract data from log entry
-        time_generated, user_principal_name, app_display_name, ip_address, location, status = log_data
-        
-        # Create new log entry
-        log = SignInLog(
-            timestamp=time_generated,
-            user_principal_name=user_principal_name,
-            app_display_name=app_display_name,
-            ip_address=ip_address,
-            location=location,
-            status=status
-        )
-        
-        db.session.add(log)
-        db.session.commit()
-        
-    except Exception as e:
-        logger.exception(f"Error saving sign-in log: {str(e)}")
-        db.session.rollback()

@@ -12,12 +12,13 @@ from datetime import datetime, timedelta
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
+from bson import ObjectId
 
 from src.core.celery_app import celery_app
 from src.drift.azure_poller import poll_azure_configurations, poll_entra_signing_logs
 from src.drift.drift_detector import detect_drift
-from src.core.models import Configuration, ConfigurationHistory
-from src.core.app import db
+from src.core.mongodb import get_collection
+from src.core.models import User, Role, UserRole  # Keep SQLAlchemy models for auth
 
 logger = get_task_logger(__name__)
 
@@ -34,7 +35,7 @@ def poll_azure_resources(self):
     
     This task is responsible for:
     1. Polling all configured Azure resources
-    2. Storing current configurations
+    2. Storing current configurations in MongoDB
     3. Detecting drift from previous configurations
     
     Returns:
@@ -42,6 +43,9 @@ def poll_azure_resources(self):
     """
     try:
         logger.info("Starting Azure resource polling")
+        
+        # Get MongoDB collections
+        configs_collection = get_collection('configurations')
         
         # Poll Azure configurations
         success = poll_azure_configurations()
@@ -81,7 +85,7 @@ def poll_entra_logs(self):
     
     This task is responsible for:
     1. Polling sign-in logs from Entra ID
-    2. Storing logs in the database
+    2. Storing logs in MongoDB
     3. Analyzing for suspicious activities
     
     Returns:
@@ -89,6 +93,9 @@ def poll_entra_logs(self):
     """
     try:
         logger.info("Starting Entra ID sign-in log polling")
+        
+        # Get MongoDB collection
+        logs_collection = get_collection('signin_logs')
         
         # Poll sign-in logs
         success = poll_entra_signing_logs()
@@ -136,13 +143,22 @@ def detect_drift_task(self, resource_id=None):
     try:
         logger.info(f"Starting drift detection for resource: {resource_id or 'all'}")
         
+        # Get MongoDB collections
+        configs_collection = get_collection('configurations')
+        drift_history_collection = get_collection('drift_history')
+        
         # Get configurations to compare
         if resource_id:
-            configs = Configuration.query.filter_by(resource_id=resource_id).order_by(Configuration.timestamp.desc()).limit(2).all()
+            # Get the two most recent configurations for the resource
+            configs = list(configs_collection.find(
+                {'resource_id': resource_id}
+            ).sort('timestamp', -1).limit(2))
         else:
             # Get all resources that have been updated in the last hour
             recent_time = datetime.utcnow() - timedelta(hours=1)
-            configs = Configuration.query.filter(Configuration.timestamp >= recent_time).all()
+            configs = list(configs_collection.find(
+                {'timestamp': {'$gte': recent_time}}
+            ).sort('timestamp', -1))
         
         if not configs:
             logger.info("No configurations found for drift detection")
@@ -154,33 +170,34 @@ def detect_drift_task(self, resource_id=None):
         
         # Detect drift
         drift_results = []
-        for config in configs:
-            if config.previous_config:
-                drift_detected, changes, severity = detect_drift(
-                    config.previous_config.config_data,
-                    config.config_data
-                )
+        for i in range(len(configs) - 1):
+            current_config = configs[i]
+            previous_config = configs[i + 1]
+            
+            drift_detected, changes, severity = detect_drift(
+                previous_config['config_data'],
+                current_config['config_data']
+            )
+            
+            if drift_detected:
+                # Record drift in history
+                drift_record = {
+                    'resource_id': current_config['resource_id'],
+                    'resource_type': current_config['resource_type'],
+                    'previous_config_id': previous_config['_id'],
+                    'current_config_id': current_config['_id'],
+                    'changes': changes,
+                    'severity': severity,
+                    'detected_at': datetime.utcnow()
+                }
+                drift_history_collection.insert_one(drift_record)
                 
-                if drift_detected:
-                    # Record drift in history
-                    history = ConfigurationHistory(
-                        resource_id=config.resource_id,
-                        resource_type=config.resource_type,
-                        previous_config_id=config.previous_config.id,
-                        current_config_id=config.id,
-                        changes=changes,
-                        severity=severity,
-                        detected_at=datetime.utcnow()
-                    )
-                    db.session.add(history)
-                    db.session.commit()
-                    
-                    drift_results.append({
-                        'resource_id': config.resource_id,
-                        'resource_type': config.resource_type,
-                        'severity': severity,
-                        'changes': changes
-                    })
+                drift_results.append({
+                    'resource_id': current_config['resource_id'],
+                    'resource_type': current_config['resource_type'],
+                    'severity': severity,
+                    'changes': changes
+                })
         
         logger.info(f"Drift detection completed. Found {len(drift_results)} drifts.")
         return {
@@ -309,11 +326,21 @@ def notify_drift(resource_id: str, resource_type: str, severity: str, changes: d
         changes (dict): The detected changes
     """
     try:
-        # TODO: Implement notification logic (email, Slack, etc.)
-        logger.info(
-            f"Notification for drift in {resource_type} {resource_id}: "
-            f"severity={severity}, changes={changes}"
-        )
+        # Get notification settings from PostgreSQL (user preferences)
+        # This part still uses PostgreSQL for user data
+        from src.core.app import db
+        from src.core.models import NotificationSettings
+        
+        notification_settings = NotificationSettings.query.filter_by(
+            user_id=current_user.id
+        ).first()
+        
+        if notification_settings and notification_settings.enabled:
+            # TODO: Implement notification logic (email, Slack, etc.)
+            logger.info(
+                f"Notification for drift in {resource_type} {resource_id}: "
+                f"severity={severity}, changes={changes}"
+            )
         
     except Exception as e:
         logger.exception(f"Error sending drift notification: {str(e)}")
