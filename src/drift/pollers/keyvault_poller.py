@@ -1,13 +1,13 @@
 """
-Key Vault poller module for Azure.
+Key Vault poller module.
 
-This module provides functionality for polling Azure Key Vault configurations.
+This module handles polling of Azure Key Vault configurations.
 """
 
 import logging
 import requests
 from datetime import datetime
-from ..azure_poller import save_configuration
+from src.core.mongodb_ops import save_configuration
 
 logger = logging.getLogger(__name__)
 
@@ -16,58 +16,66 @@ class KeyVaultPoller:
     
     def __init__(self, access_token):
         """
-        Initialize Key Vault poller.
+        Initialize the Key Vault poller.
         
         Args:
             access_token (str): Azure access token
         """
         self.access_token = access_token
         self.subscription_id = None
-        
+    
     def poll(self):
-        """Poll Key Vault configurations for the current subscription."""
+        """
+        Poll Key Vault configurations.
+        
+        This method retrieves the list of Key Vaults in the subscription and
+        polls the configuration for each vault.
+        """
         if not self.subscription_id:
-            logger.error("Subscription ID not set")
+            logger.error("No subscription ID set")
             return
-            
+        
         try:
             # Get list of Key Vaults
-            keyvaults = self._get_keyvault_list()
+            vault_list = self._get_vault_list()
+            if not vault_list:
+                return
             
             # Poll each Key Vault
-            for keyvault in keyvaults:
-                keyvault_id = keyvault['id']
-                keyvault_name = keyvault['name']
-                keyvault_config = self._get_keyvault_config(keyvault_id)
+            for vault in vault_list:
+                vault_id = vault['id']
+                vault_name = vault['name']
+                vault_config = self._get_vault_config(vault_id)
                 
-                if keyvault_config:
-                    # Save configuration
+                if vault_config:
+                    # Save Key Vault configuration
                     save_configuration(
-                        source='azure',
-                        resource_type='key_vault',
-                        resource_id=keyvault_id,
-                        resource_name=keyvault_name,
-                        config_data=keyvault_config
+                        'azure',
+                        'key_vault',
+                        vault_id,
+                        vault_name,
+                        vault_config
                     )
                     
         except Exception as e:
-            logger.exception(f"Error polling Key Vaults: {str(e)}")
-            
-    def _get_keyvault_list(self):
+            logger.exception(f"Error polling Key Vault configurations: {str(e)}")
+    
+    def _get_vault_list(self):
         """
         Get list of Key Vaults in the subscription.
         
         Returns:
-            list: List of Key Vault objects
+            list: List of Key Vault objects or empty list if request fails
         """
         try:
-            url = f"https://management.azure.com/subscriptions/{self.subscription_id}/providers/Microsoft.KeyVault/vaults?api-version=2021-10-01"
+            url = f"https://management.azure.com/subscriptions/{self.subscription_id}/providers/Microsoft.KeyVault/vaults?api-version=2021-04-01"
             headers = {
                 'Authorization': f'Bearer {self.access_token}',
                 'Content-Type': 'application/json'
             }
             
             response = requests.get(url, headers=headers)
+            
             if response.status_code == 200:
                 return response.json().get('value', [])
             else:
@@ -77,31 +85,32 @@ class KeyVaultPoller:
         except Exception as e:
             logger.exception(f"Error getting Key Vault list: {str(e)}")
             return []
-            
-    def _get_keyvault_config(self, keyvault_id):
+    
+    def _get_vault_config(self, vault_id):
         """
         Get detailed configuration for a Key Vault.
         
         Args:
-            keyvault_id (str): Key Vault resource ID
+            vault_id (str): Key Vault resource ID
             
         Returns:
             dict: Key Vault configuration or None if request fails
         """
         try:
-            url = f"https://management.azure.com{keyvault_id}?api-version=2021-10-01"
+            url = f"https://management.azure.com{vault_id}?api-version=2021-04-01"
             headers = {
                 'Authorization': f'Bearer {self.access_token}',
                 'Content-Type': 'application/json'
             }
             
             response = requests.get(url, headers=headers)
+            
             if response.status_code == 200:
                 return response.json()
             else:
-                logger.warning(f"Failed to get Key Vault config for {keyvault_id}: {response.status_code}")
+                logger.warning(f"Failed to get Key Vault config for {vault_id}: {response.status_code}")
                 return None
                 
         except Exception as e:
-            logger.exception(f"Error getting Key Vault config: {str(e)}")
+            logger.exception(f"Error getting Key Vault config for {vault_id}: {str(e)}")
             return None 

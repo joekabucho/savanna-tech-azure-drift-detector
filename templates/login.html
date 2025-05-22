@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Login - Savanna Tech Azure Drift Detector{% endblock %}
+{% block title %}Login - BlindspotX Azure Drift Detector{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6 col-lg-5">
         <div class="card shadow">
             <div class="card-body text-center pt-4">
-                <img src="{{ url_for('static', filename='images/logo.jpeg') }}" alt="Savanna Logo" class="mb-4" style="width: 120px; height: auto;">
-                <h4 class="mb-4">Welcome to Savanna Tech Azure Drift Detector</h4>
+                <img src="{{ url_for('static', filename='images/logo.jpeg') }}" alt="BlindspotX Logo" class="mb-4" style="width: 120px; height: auto;">
+                <h4 class="mb-4">Welcome to BlindspotX Azure Drift Detector</h4>
                 {% if error %}
                 <div class="alert alert-danger" role="alert">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
@@ -16,6 +16,7 @@
                 {% endif %}
                 
                 <form method="POST" action="{{ url_for('login') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
                         <div class="input-group">

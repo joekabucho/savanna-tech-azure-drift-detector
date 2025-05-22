@@ -1,4 +1,4 @@
-#Savanna Tech  Azure Drift Detector
+# BlindspotX Azure Drift Detector
 
 A Flask-based web application that monitors and detects configuration changes (drift) in Azure resources. The application helps identify potential security risks and configuration changes in your Azure infrastructure.
 
@@ -266,4 +266,37 @@ For support, please:
 - Prometheus monitoring
 - ELK Stack
 - Jaeger tracing
+
+## Running with Docker
+
+You can run BlindspotX Azure Drift Detector using Docker and Docker Compose for easy local development and deployment.
+
+### Prerequisites
+- [Docker](https://www.docker.com/get-started) installed
+- [Docker Compose](https://docs.docker.com/compose/install/) installed
+
+### Quick Start
+
+1. **Build and start the containers:**
+   ```bash
+   docker-compose up --build
+   ```
+   This will start both the application and a PostgreSQL database. The app will be available at [http://localhost:5000](http://localhost:5000).
+
+2. **(Optional) Run database migrations:**
+   In a new terminal, run:
+   ```bash
+   docker-compose exec app flask db upgrade
+   ```
+
+3. **Stop the containers:**
+   ```bash
+   docker-compose down
+   ```
+
+### Customization
+- You can set environment variables (such as Azure credentials) in the `docker-compose.yml` file under the `app` service.
+- The default database credentials are set for local development. Change them for production use.
+
+---
 

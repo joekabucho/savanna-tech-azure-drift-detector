@@ -634,8 +634,9 @@ def disconnect_microsoft():
 @login_required
 def get_settings():
     try:
-        # Get settings from database
-        stored_settings = Settings.get_settings()
+        # Get settings from database for the current user's tenant
+        tenant_id = current_user.tenant_id
+        stored_settings = Settings.get_settings(tenant_id)
         
         # Default settings
         settings = {
@@ -666,15 +667,16 @@ def get_settings():
         }
 
         # Update with stored settings
-        for key in stored_settings:
-            if key in settings:
-                settings[key].update(stored_settings[key])
+        if stored_settings:
+            for key in stored_settings:
+                if key in settings:
+                    settings[key].update(stored_settings[key])
         
         return jsonify(settings)
         
     except Exception as e:
         logger.exception(f"Error fetching settings: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Failed to load settings'}), 500
 
 @api_bp.route('/settings', methods=['POST'])
 @login_required
@@ -687,8 +689,9 @@ def update_settings():
         if not isinstance(data, dict):
             return jsonify({'error': 'Invalid settings format'}), 400
         
-        # Update settings in database
-        Settings.update_settings(data)
+        # Update settings in database for the current user's tenant
+        tenant_id = current_user.tenant_id
+        Settings.update_settings(tenant_id, data)
         
         # Update app configuration where applicable
         if 'general' in data:
@@ -706,7 +709,7 @@ def update_settings():
         
     except Exception as e:
         logger.exception(f"Error updating settings: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Failed to update settings'}), 500
 
 @api_bp.route('/test-connection', methods=['GET'])
 @login_required
