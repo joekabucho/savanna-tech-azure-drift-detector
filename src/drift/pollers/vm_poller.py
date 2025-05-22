@@ -1,13 +1,13 @@
 """
-Virtual Machine poller module for Azure.
+Virtual Machine poller module.
 
-This module provides functionality for polling Azure Virtual Machine configurations.
+This module handles polling of Azure Virtual Machine configurations.
 """
 
 import logging
 import requests
 from datetime import datetime
-from ..azure_poller import save_configuration
+from src.core.mongodb_ops import save_configuration
 
 logger = logging.getLogger(__name__)
 
@@ -16,49 +16,56 @@ class VMPoller:
     
     def __init__(self, access_token):
         """
-        Initialize VM poller.
+        Initialize the VM poller.
         
         Args:
             access_token (str): Azure access token
         """
         self.access_token = access_token
         self.subscription_id = None
-        
+    
     def poll(self):
-        """Poll VM configurations for the current subscription."""
+        """
+        Poll VM configurations.
+        
+        This method retrieves the list of VMs in the subscription and
+        polls the configuration for each VM.
+        """
         if not self.subscription_id:
-            logger.error("Subscription ID not set")
+            logger.error("No subscription ID set")
             return
-            
+        
         try:
             # Get list of VMs
-            vms = self._get_vm_list()
+            vm_list = self._get_vm_list()
+            if not vm_list:
+                return
             
             # Poll each VM
-            for vm in vms:
+            for vm in vm_list:
                 vm_id = vm['id']
                 vm_name = vm['name']
                 vm_config = self._get_vm_config(vm_id)
                 
                 if vm_config:
-                    # Save configuration
+                    # Save VM configuration
                     save_configuration(
-                        source='azure',
-                        resource_type='virtual_machine',
-                        resource_id=vm_id,
-                        resource_name=vm_name,
-                        config_data=vm_config
+                        'azure',
+                        'virtual_machine',
+                        vm_id,
+                        vm_name,
+                        vm_config
                     )
                     
         except Exception as e:
-            logger.exception(f"Error polling VMs: {str(e)}")
-            
+            logger.exception(f"Error polling VM configurations: {str(e)}")
+    
     def _get_vm_list(self):
         """
         Get list of VMs in the subscription.
         
         Returns:
-            list: List of VM objects
+            list: List of VM objects or empty list if request fails
         """
         try:
             url = f"https://management.azure.com/subscriptions/{self.subscription_id}/providers/Microsoft.Compute/virtualMachines?api-version=2021-04-01"
@@ -68,6 +75,7 @@ class VMPoller:
             }
             
             response = requests.get(url, headers=headers)
+            
             if response.status_code == 200:
                 return response.json().get('value', [])
             else:
@@ -77,7 +85,7 @@ class VMPoller:
         except Exception as e:
             logger.exception(f"Error getting VM list: {str(e)}")
             return []
-            
+    
     def _get_vm_config(self, vm_id):
         """
         Get detailed configuration for a VM.
@@ -96,6 +104,7 @@ class VMPoller:
             }
             
             response = requests.get(url, headers=headers)
+            
             if response.status_code == 200:
                 return response.json()
             else:
@@ -103,5 +112,5 @@ class VMPoller:
                 return None
                 
         except Exception as e:
-            logger.exception(f"Error getting VM config: {str(e)}")
+            logger.exception(f"Error getting VM config for {vm_id}: {str(e)}")
             return None 

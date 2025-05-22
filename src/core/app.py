@@ -39,6 +39,9 @@ app = Flask(__name__,
            template_folder=os.path.join(project_root, 'templates'),
            static_folder=os.path.join(project_root, 'static'))
 
+# Set secret key first - this is required for CSRF and session management
+app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24))
+
 # Security configurations for the application
 app.config.update(
     # Session security settings
@@ -50,6 +53,7 @@ app.config.update(
     # CSRF protection settings
     WTF_CSRF_ENABLED=True,
     WTF_CSRF_TIME_LIMIT=3600,  # CSRF token valid for 1 hour
+    WTF_CSRF_SECRET_KEY=os.environ.get('CSRF_SECRET_KEY', app.secret_key),
     
     # Remember me cookie security
     REMEMBER_COOKIE_SECURE=True,
@@ -57,7 +61,6 @@ app.config.update(
     REMEMBER_COOKIE_SAMESITE='Lax',
     
     # Application security keys
-    SECRET_KEY=os.environ.get("SESSION_SECRET", os.urandom(24)),
     SECURITY_PASSWORD_SALT=os.environ.get("PASSWORD_SALT", os.urandom(24)),
 )
 

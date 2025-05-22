@@ -1,82 +1,81 @@
 """
-Storage Account poller module for Azure.
+Storage Account poller module.
 
-This module provides functionality for polling Azure Storage Account configurations.
+This module handles polling of Azure Storage Account configurations.
 """
 
 import logging
 import requests
 from datetime import datetime
-from ..azure_poller import save_configuration
+from src.core.mongodb_ops import save_configuration
 
 logger = logging.getLogger(__name__)
 
 class StoragePoller:
-    """
-    Poller for Azure Storage Account resources.
-    
-    This class handles polling of storage account configurations including:
-    - Account properties and settings
-    - Blob containers
-    - File shares
-    - Access policies
-    - Network rules
-    """
+    """Poller for Azure Storage Account configurations."""
     
     def __init__(self, access_token):
         """
-        Initialize Storage poller.
+        Initialize the storage poller.
         
         Args:
             access_token (str): Azure access token
         """
         self.access_token = access_token
         self.subscription_id = None
-        
+    
     def poll(self):
-        """Poll Storage Account configurations for the current subscription."""
+        """
+        Poll storage account configurations.
+        
+        This method retrieves the list of storage accounts in the subscription and
+        polls the configuration for each account.
+        """
         if not self.subscription_id:
-            logger.error("Subscription ID not set")
+            logger.error("No subscription ID set")
             return
-            
+        
         try:
             # Get list of storage accounts
-            storage_accounts = self._get_storage_account_list()
+            storage_list = self._get_storage_account_list()
+            if not storage_list:
+                return
             
             # Poll each storage account
-            for account in storage_accounts:
-                account_id = account['id']
-                account_name = account['name']
-                account_config = self._get_storage_account_config(account_id)
+            for storage in storage_list:
+                storage_id = storage['id']
+                storage_name = storage['name']
+                storage_config = self._get_storage_account_config(storage_id)
                 
-                if account_config:
-                    # Save configuration
+                if storage_config:
+                    # Save storage account configuration
                     save_configuration(
-                        source='azure',
-                        resource_type='storage_account',
-                        resource_id=account_id,
-                        resource_name=account_name,
-                        config_data=account_config
+                        'azure',
+                        'storage_account',
+                        storage_id,
+                        storage_name,
+                        storage_config
                     )
                     
         except Exception as e:
-            logger.exception(f"Error polling storage accounts: {str(e)}")
-            
+            logger.exception(f"Error polling storage account configurations: {str(e)}")
+    
     def _get_storage_account_list(self):
         """
         Get list of storage accounts in the subscription.
         
         Returns:
-            list: List of storage account objects
+            list: List of storage account objects or empty list if request fails
         """
         try:
-            url = f"https://management.azure.com/subscriptions/{self.subscription_id}/providers/Microsoft.Storage/storageAccounts?api-version=2021-08-01"
+            url = f"https://management.azure.com/subscriptions/{self.subscription_id}/providers/Microsoft.Storage/storageAccounts?api-version=2021-04-01"
             headers = {
                 'Authorization': f'Bearer {self.access_token}',
                 'Content-Type': 'application/json'
             }
             
             response = requests.get(url, headers=headers)
+            
             if response.status_code == 200:
                 return response.json().get('value', [])
             else:
@@ -86,33 +85,34 @@ class StoragePoller:
         except Exception as e:
             logger.exception(f"Error getting storage account list: {str(e)}")
             return []
-            
-    def _get_storage_account_config(self, account_id):
+    
+    def _get_storage_account_config(self, storage_id):
         """
         Get detailed configuration for a storage account.
         
         Args:
-            account_id (str): Storage account resource ID
+            storage_id (str): Storage account resource ID
             
         Returns:
             dict: Storage account configuration or None if request fails
         """
         try:
-            url = f"https://management.azure.com{account_id}?api-version=2021-08-01"
+            url = f"https://management.azure.com{storage_id}?api-version=2021-04-01"
             headers = {
                 'Authorization': f'Bearer {self.access_token}',
                 'Content-Type': 'application/json'
             }
             
             response = requests.get(url, headers=headers)
+            
             if response.status_code == 200:
                 return response.json()
             else:
-                logger.warning(f"Failed to get storage account config for {account_id}: {response.status_code}")
+                logger.warning(f"Failed to get storage account config for {storage_id}: {response.status_code}")
                 return None
                 
         except Exception as e:
-            logger.exception(f"Error getting storage account config: {str(e)}")
+            logger.exception(f"Error getting storage account config for {storage_id}: {str(e)}")
             return None
     
     def _poll_storage_details(self, account):

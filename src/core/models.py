@@ -9,6 +9,9 @@ from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from src.core.app import db
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Tenant(db.Model):
     """
@@ -193,10 +196,14 @@ class Settings(db.Model):
         Returns:
             dict: Dictionary of setting key-value pairs
         """
-        settings = {}
-        for setting in cls.query.filter_by(tenant_id=tenant_id).all():
-            settings[setting.key] = setting.value
-        return settings
+        try:
+            settings = {}
+            for setting in cls.query.filter_by(tenant_id=tenant_id).all():
+                settings[setting.key] = setting.value
+            return settings
+        except Exception as e:
+            logger.exception(f"Error retrieving settings for tenant {tenant_id}: {str(e)}")
+            return {}
 
     @classmethod
     def update_settings(cls, tenant_id, new_settings):
@@ -207,14 +214,19 @@ class Settings(db.Model):
             tenant_id: The ID of the tenant
             new_settings: Dictionary of setting key-value pairs to update
         """
-        for key, value in new_settings.items():
-            setting = cls.query.filter_by(tenant_id=tenant_id, key=key).first()
-            if setting:
-                setting.value = value
-            else:
-                setting = cls(tenant_id=tenant_id, key=key, value=value)
-                db.session.add(setting)
-        db.session.commit()
+        try:
+            for key, value in new_settings.items():
+                setting = cls.query.filter_by(tenant_id=tenant_id, key=key).first()
+                if setting:
+                    setting.value = value
+                else:
+                    setting = cls(tenant_id=tenant_id, key=key, value=value)
+                    db.session.add(setting)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.exception(f"Error updating settings for tenant {tenant_id}: {str(e)}")
+            raise
 
     def __repr__(self):
         return f'<Settings {self.key}>'

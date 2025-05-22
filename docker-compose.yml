@@ -1,39 +1,36 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: blindspotx
+      POSTGRES_USER: blindspotx
+      POSTGRES_PASSWORD: blindspotxpass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
   app:
     build: .
-    ports:
-      - "5000:5000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/azure_drift
-      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
-      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
-      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
-      - FLASK_APP=src.core.app
-      - FLASK_ENV=production
     depends_on:
       - db
-    volumes:
-      - ./src:/app/src
-    networks:
-      - app-network
-    restart: unless-stopped
-
-  db:
-    image: postgres:15-alpine
+    env_file: .env
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=azure_drift
+      DATABASE_URL: postgresql://blindspotx:blindspotxpass@db:5432/blindspotx
+      SESSION_SECRET: supersecretkey
+      # Azure environment variables will be loaded from .env file
+    ports:
+      - "5000:5000"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - app-network
+      - .:/app
+    command: gunicorn -b 0.0.0.0:5000 main:app
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  pgdata:
 
 networks:
   app-network:

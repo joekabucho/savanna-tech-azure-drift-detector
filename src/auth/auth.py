@@ -23,12 +23,17 @@ from authlib.integrations.flask_client import OAuth
 from authlib.integrations.base_client.errors import OAuthError
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
+import pathlib
 
 from src.core.app import app, db
 from src.core.models import User, Role, UserRole, Tenant, LoginAttempt
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
 
 # Initialize rate limiter to prevent brute force attacks
 limiter = Limiter(
@@ -41,18 +46,37 @@ limiter = Limiter(
 oauth = OAuth(app)
 
 # Load environment variables
-load_dotenv()
+project_root = pathlib.Path(__file__).parent.parent.parent.resolve()
+dotenv_path = project_root / ".env"
+print(f"[DEBUG] Looking for .env file at: {dotenv_path}")
+print(f"[DEBUG] .env file exists: {dotenv_path.exists()}")
+
+# Load environment variables
+load_dotenv(dotenv_path=dotenv_path)
+
+# Debug: Print loaded Azure OIDC config values
+print("[DEBUG] Environment variables loaded:")
+print(f"[DEBUG] AZURE_TENANT_ID: {os.environ.get('AZURE_TENANT_ID')}")
+print(f"[DEBUG] AZURE_CLIENT_ID: {os.environ.get('AZURE_CLIENT_ID')}")
+print(f"[DEBUG] AZURE_CLIENT_SECRET: {'*' * 8 if os.environ.get('AZURE_CLIENT_SECRET') else None}")
+print(f"[DEBUG] AZURE_SUBSCRIPTION_ID: {os.environ.get('AZURE_SUBSCRIPTION_ID')}")
 
 # Microsoft OAuth configuration
-azure_client_id = os.environ.get("AZURE_CLIENT_ID")
-azure_client_secret = os.environ.get("AZURE_CLIENT_SECRET")
-azure_tenant_id = os.environ.get("AZURE_TENANT_ID")  # Default to common tenant
+azure_client_id = "cc3c5562-ad5d-4b7f-aa97-04be2f286894"
+azure_client_secret = "~Hc8Q~-Tnvzqk4QNbH-guHofTd7R1ulF452DgcaW"
+azure_tenant_id = "2b3c29de-9f5a-4ec0-b8a7-6ca431fe6976"
+
+
+# azure_client_id = os.environ.get("AZURE_CLIENT_ID")
+# azure_client_secret = os.environ.get("AZURE_CLIENT_SECRET")
+# azure_tenant_id = os.environ.get("AZURE_TENANT_ID")
 
 # Define microsoft variable with a default value
 microsoft = None
 
 # Register Microsoft OAuth provider if credentials are available
-if azure_client_id and azure_client_secret:
+if azure_client_id and azure_client_secret and azure_tenant_id:
+    print(f"[DEBUG] Registering Microsoft OAuth with tenant ID: {azure_tenant_id}")
     microsoft = oauth.register(
         name='microsoft',
         client_id=azure_client_id,
@@ -67,7 +91,13 @@ if azure_client_id and azure_client_secret:
         },
     )
 else:
-    logger.warning("Microsoft OAuth not configured: missing client_id or client_secret")
+    logger.warning("Microsoft OAuth not configured: missing required credentials")
+    if not azure_client_id:
+        logger.warning("Missing AZURE_CLIENT_ID")
+    if not azure_client_secret:
+        logger.warning("Missing AZURE_CLIENT_SECRET")
+    if not azure_tenant_id:
+        logger.warning("Missing AZURE_TENANT_ID")
 
 def role_required(role_name):
     """
@@ -179,6 +209,7 @@ def login():
     return render_template('login.html', error=error, ms_auth_enabled=ms_auth_enabled)
 
 @app.route('/login/microsoft')
+@csrf.exempt  # Exempt CSRF for OAuth redirect
 def login_microsoft():
     """
     Initiate Microsoft OAuth login flow.
@@ -197,6 +228,7 @@ def login_microsoft():
     return microsoft.authorize_redirect(redirect_uri)
 
 @app.route('/authorize/microsoft')
+@csrf.exempt  # Exempt CSRF for OAuth callback
 def authorize_microsoft():
     """
     Handle Microsoft OAuth callback.

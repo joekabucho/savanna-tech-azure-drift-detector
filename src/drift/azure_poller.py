@@ -10,7 +10,7 @@ import logging
 import msal
 from datetime import datetime, timedelta
 from .pollers import VMPoller, StoragePoller, NSGPoller, KeyVaultPoller
-from src.core.mongodb import get_collection
+from src.core.mongodb_ops import save_configuration, save_signin_log
 
 logger = logging.getLogger(__name__)
 
@@ -48,38 +48,6 @@ def get_azure_token():
     except Exception as e:
         logger.exception(f"Error acquiring tokens: {str(e)}")
         return None, None
-
-def save_configuration(source, resource_type, resource_id, resource_name, config_data):
-    """
-    Save resource configuration to MongoDB.
-    
-    Args:
-        source (str): Source of the configuration (e.g., 'azure', 'm365')
-        resource_type (str): Type of resource
-        resource_id (str): Resource identifier
-        resource_name (str): Resource name
-        config_data (dict): Configuration data
-    """
-    try:
-        configs_collection = get_collection('configurations')
-        
-        # Create configuration document
-        config_doc = {
-            'source': source,
-            'resource_type': resource_type,
-            'resource_id': resource_id,
-            'resource_name': resource_name,
-            'config_data': config_data,
-            'timestamp': datetime.utcnow()
-        }
-        
-        # Insert into MongoDB
-        configs_collection.insert_one(config_doc)
-        logger.debug(f"Saved configuration for {resource_type} {resource_id}")
-        
-    except Exception as e:
-        logger.error(f"Error saving configuration: {str(e)}")
-        raise
 
 def poll_azure_configurations():
     """
@@ -252,8 +220,6 @@ def poll_entra_signing_logs():
         
         if response.status_code == 200:
             logs = response.json()
-            # Get MongoDB collection
-            logs_collection = get_collection('signin_logs')
             
             # Process and store logs
             for log in logs.get('tables', [])[0].get('rows', []):
@@ -265,7 +231,7 @@ def poll_entra_signing_logs():
                     'location': log[4],
                     'status': log[5]
                 }
-                logs_collection.insert_one(log_doc)
+                save_signin_log(log_doc)
             return True
         else:
             logger.warning(f"Failed to get sign-in logs: {response.status_code}")
